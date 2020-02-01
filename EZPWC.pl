@@ -25,6 +25,7 @@ use LWP::Simple qw($ua get head);
 use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
 
+my $VERSION=0.01;
 my $OS=$^O;
 my %config;
 $workingDirectory="$ENV{HOME}/PerlChallenges";
