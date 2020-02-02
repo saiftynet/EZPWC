@@ -25,4 +25,4 @@ A working directory is created, a clone is stored within this directory, and als
 
 ## Screeshot
 
-https://github.com/saiftynet/EZPWC/blob/master/EZPWC.png?raw=true
+![Screenshot](https://github.com/saiftynet/EZPWC/blob/master/EZPWC.png)
