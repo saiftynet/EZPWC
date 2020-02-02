@@ -7,5 +7,6 @@ This is a script that hopefully eases the interactions between the Chellenge par
 * It forks, and then creates a local clone if it hasn't already been done
 * It adds/ fetches upstream
 * It extracts the latest week's challenges
-
-to do: create branch if user wishes and await completion of tasks, before offering to add to branch, commit, push and create a pull request.
+* It creates a new branch for current week if not already created
+* It then allows user to make changes, and finally adds to branch, commits and pushes
+* It then takes user to GitHub ot create a pull request. 
