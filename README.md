@@ -22,3 +22,7 @@ The file may be editted to allow change in location of the git clone...by defaul
 Execute the file and prompts will follow. At some points, the default browser may open, allowing you to create or login to your github account. At certain points, e.g. when pushing changes to master, you may be asked to enter your github user name and password.  Your password itself is not stored in any file.
 
 A working directory is created, a clone is stored within this directory, and also withing this director is a Config file that is created to store settings and preferences.
+
+## Screeshot
+
+https://github.com/saiftynet/EZPWC/blob/master/EZPWC.png?raw=true
