@@ -45,7 +45,7 @@ getChallenges();         # step 7 get challenges from manwar's PWC blog
 getBranches();           # step 8 get branches, and set one up for this week if required
 readyToAdd();            # step 9 once ready to add
 saveConfig();	
-print "\n\nAll done...god bye!!"
+print "\n\nAll done...god bye!!";
 exit 0;
 
 sub setupDirectory{
