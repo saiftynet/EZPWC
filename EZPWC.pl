@@ -25,21 +25,28 @@ use LWP::Simple qw($ua get head);
 use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
 
-my $VERSION=0.01;
+
+my $VERSION=0.02;
+
 my $OS=$^O;
 my %config;
 $workingDirectory="$ENV{HOME}/PerlChallenges";
 print "Starting EZPWC \n";
 
 loadConfig();
-setupDirectory();
-setupGithub() unless ($config{githubUN});
-makeFork()    if ($config{githubUN} and   !$config{"fork"});
-clone()       if ($config{"fork"}  and   !$config{"clone"});
-addUpstream() ;#if ($config{"clone"}  and   !$config{"upstream"});
-fetchUpstream() if ($config{"upstream"});
-getChallenges();
+
+setupDirectory();        # step 1 set up a directory locally if it has not been setup
+setupGithub();           # step 2 set up user's existing github account or setting up a new one
+makeFork();              # step 3 set up fork if not already forked
+clone();                 # step 4 fork if not already forked
+addUpstream();           # step 5 ensure upstream has been set up 
+fetchUpstream();         # step 6 fetch upstream
+getChallenges();         # step 7 get challenges from manwar's PWC blog
+getBranches();           # step 8 get branches, and set one up for this week if required
+readyToAdd();            # step 9 once ready to add
 saveConfig();	
+print "\n\nAll done...god bye!!"
+exit 0;
 
 sub setupDirectory{
 	if ( -e $config{workingDirectory} and -d $config{workingDirectory}){
@@ -55,7 +62,13 @@ sub setupDirectory{
 }
 
 sub setupGithub{
+	if (($config{githubUN})&&(URLexists("https://github.com/$config{githubUN}"))){
+		print "Github account for $config{githubUN} found...\n";
+		return;		
+	};
+	
 	print "Attempting to setup github...\n";
+
 	while ($config{githubUN} eq ""){  # setup github, and fork the repo   
 	   $config{githubUN} = prompt ("Enter your github username or S to skip or C to create one: \n"); 
 	   if ($config{githubUN} =~/^s$/i){
@@ -81,6 +94,10 @@ sub setupGithub{
 }
 
 sub makeFork{
+	
+    if (!$config{githubUN}) {print "GitHub account not setup so cannot fork\n";return};
+    if ($config{"fork"})    {print "Fork already set up\n";return};
+	
 	print "Checking for fork $config{repoName};...\n";
 	$config{"fork"}=undef;
     while (!$config{"fork"}){
@@ -93,7 +110,7 @@ sub makeFork{
 			if ($response=~/^y/i){
 			   print "Browser should open the master repo after a login request\n";
 			   print "click on 'Fork' to fork the repo\n";
-			   browse2("https://github.com/login?return_to=%2Fmanwar%2Fperlweeklychallenge-club");
+			   browse2("https://github.com/login?return_to=%2F".$config{repoOwner}."%2F".$config{repoName});
 			   my $response=prompt ( "\nPress enter once fork completed");
 			}
 			else{
@@ -107,6 +124,9 @@ sub makeFork{
 
 
 sub clone{
+	if (!$config{"fork"})   {print "Fork not setup so cannot clone\n";return}; 
+	if ($config{"clone"})   {print "Clone found\n";return};
+	
 	print "cloning repo\n";
 	if  ( -e "$config{workingDirectory}/$config{repoName}" and 
 	                  -d "$config{workingDirectory}/$config{repoName}") {
@@ -150,31 +170,82 @@ sub addUpstream{
 }
 	
 sub fetchUpstream{
+	if (!$config{"upstream"}){print "Upstream not setup so cannot Fetch Upstream\n";return}; 
+	
+	# Now we need to fetch latest changes from the upstream
 	print "Fetching upstream\n";
-	# Now we need to fetch latest changes from the upstrea
 	print `git fetch upstream`;
+	
 	# We will now merge the changes into your local master branch
 	print `git merge upstream/master --ff-only`;   
+	
 	# Then push your master changes back to the repository.
-	my $response= `git push -u origin master`;
-	if ($response !~/^fatal/g){
-			print response;
-			$config{clone}=1;
-	};
+	my $pushed=0;
+	while (!$pushed ){
+		my $response= `git push -u origin master`;
+		if ($response !~/^fatal/g){
+			$pushed=1
+		}
+		else{
+			my $try=prompt ("Failed to fetch: Print any key to try again or 's' to skip");
+			$pushed=1 if $try =~/s/i;
+		}
+	}
 }
 
 sub getChallenges{
-	print "Getting challenges\n";
+	print "\n\nGetting challenges\n";
 	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
-	unless ((exists $config{current-week})&&($config{currentweek} eq $week)){
+	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
+		$config{currentBranch}=undef;
 		$config{currentweek}=$week ;
 	    $config{task1}  = findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",qr/TASK #1<\/h2>([\s\S]*)<h2 id="task-2">/m);
 	    $config{task2}  = findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",qr/TASK #2<\/h2>([\s\S]*)<p>Last date /m);
     }
 
-	print "\n\nCurrent week = $config{currentweek}\n", "Task #1\n",$config{task1},"\nTask #2\n", $config{task2};
+	print "\n\nCurrent week = $config{currentweek}\n";
+	prompt ("Press any key");
+	print "Task #1\n",$config{task1};
+	prompt ("Press any key");
+	print "\nTask #2\n", $config{task2};
 	
 }
+
+sub getBranches{
+	print "\n\nGetting branches ";
+	my $br=`git ls-remote --heads`;
+	@matches = ($br =~ /refs\/heads\/(.+)\n/mg);
+	print "\nBranches found : -",join ", ",@matches;
+	if ($br=~/refs\/heads\/branch-$config{currentweek}\n/gm){
+		print "\nBranch for current week ($config{currentweek}) found\n\n";
+	}
+	else{
+		print "\nBranch for current week ($config{currentweek}) not found\nCreating branch-$config{currentweek}\n";
+		print `git checkout -b branch-$config{currentweek}`;
+	}
+	print "Now add your responses to folder \n".
+	      "$config{workingDirectory}/challenge-$config{currentweek}/$config{githubUN}/\n";
+	prompt ("Press any key");  
+	  }
+
+sub readyToAdd{
+	print "If you have added you responses to the folder and\n".
+	      "you have tested them to your satisfaction, \n".
+	      "you can now commit the answers - press 'y' if ready.\n".
+	      "If you are not ready, just press 'n'...\n";
+	my $response=prompt ("Are you ready to commit yor changes? (y/n)");
+	if ($response =~/y/i){
+		print "Adding current week's ($week) challenges...\n";
+		print `git add challenge-$config{currentweek}/$config{githubUN}`;
+		print `git commit`;
+		print "Pushing results to your github...\n";
+		print `git  push -u origin branch-$config{currentweek}`;
+		print "Now time to create a pull request.  Browser should open\n".
+		      "and you should see a button to create pull request...\n";
+		browse2("https://github.com/login?return_to=%2F$config{githubUN}%2Fperlweeklychallenge-club");
+	}
+}
+
 
 sub prompt{
 	my ($message,$validation)=@_;
