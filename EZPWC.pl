@@ -25,7 +25,6 @@ use LWP::Simple qw($ua get head);
 use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
 
-
 my $VERSION=0.02;
 
 my $OS=$^O;
@@ -180,14 +179,15 @@ sub fetchUpstream{
 	print `git merge upstream/master --ff-only`;   
 	
 	# Then push your master changes back to the repository.
-	my $pushed=0;
+	my $pushed;
 	while (!$pushed ){
 		my $response= `git push -u origin master`;
-		if ($response !~/^fatal/g){
+		if ($response){
 			$pushed=1
 		}
 		else{
-			my $try=prompt ("Failed to fetch: Print any key to try again or 's' to skip");
+			my $try=prompt ("Failed to push changes back to repository\n".
+			                "Print any key to try again or 's' to skip");
 			$pushed=1 if $try =~/s/i;
 		}
 	}
