@@ -20,7 +20,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #  
-
+use strict;use warnings;
 use LWP::Simple qw($ua get head);
 use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
@@ -30,7 +30,7 @@ my $VERSION=0.02;
 
 my $OS=$^O;
 my %config;
-$workingDirectory="$ENV{HOME}/PerlChallenges";
+my $workingDirectory="$ENV{HOME}/PerlChallenges";
 print "Starting EZPWC \n";
 
 loadConfig();
@@ -137,7 +137,7 @@ sub clone{
 		$config{clone}=0;
 		chdir $config{workingDirectory};
 		"Attempting to clone repo https://github.com/$config{githubUN}/$config{repoName}\n";	
-		my $reponse= `git clone https://github.com/$config{githubUN}/$config{repoName}`;
+		my $response= `git clone https://github.com/$config{githubUN}/$config{repoName}`;
 		if ($response !~/^fatal/g){
 			print "Success cloning repo";
 			$config{clone}=1;
@@ -214,7 +214,7 @@ sub getChallenges{
 sub getBranches{
 	print "\n\nGetting branches ";
 	my $br=`git ls-remote --heads`;
-	@matches = ($br =~ /refs\/heads\/(.+)\n/mg);
+	my @matches = ($br =~ /refs\/heads\/(.+)\n/mg);
 	print "\nBranches found : -",join ", ",@matches;
 	if ($br=~/refs\/heads\/branch-$config{currentweek}\n/gm){
 		print "\nBranch for current week ($config{currentweek}) found\n\n";
@@ -235,7 +235,7 @@ sub readyToAdd{
 	      "If you are not ready, just press 'n'...\n";
 	my $response=prompt ("Are you ready to commit yor changes? (y/n)");
 	if ($response =~/y/i){
-		print "Adding current week's ($week) challenges...\n";
+		print "Adding current week's ($config{currentweek}) challenges...\n";
 		print `git add challenge-$config{currentweek}/$config{githubUN}`;
 		print `git commit`;
 		print "Pushing results to your github...\n";
