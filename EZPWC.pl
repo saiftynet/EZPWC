@@ -306,11 +306,16 @@ sub loadConfig{
 	if (-e "$workingDirectory/Config") {
 		if (%config=do "$workingDirectory/Config" ){
 			print "Config successfully loaded\n";
+			return;
 		}
-		else{
-			print "Failed to load config, continuing with defaults\n";
-			unlink ($config{workingDirectory}."/Config");
-			%config=(
+		else {
+		      print "Config exists but contains errors, please report.\n";
+		}
+	}
+
+	print "Failed to load config, continuing with defaults\n";
+	unlink ($config{workingDirectory}."/Config");
+	%config=(
 				repoName			 => "perlweeklychallenge-club",
 				repoOwner			 => "manwar",
 				workingDirectory     => "$ENV{HOME}/PerlChallenges",
@@ -319,6 +324,5 @@ sub loadConfig{
 				"fork"				 => undef,
 				upstream			 => undef,
 			);
-		}
-	}
+		
 }
