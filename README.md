@@ -24,6 +24,6 @@ Execute the file and prompts will follow. At some points, the default browser ma
 
 A working directory is created, a clone is stored within this directory, and also withing this director is a Config file that is created to store settings and preferences.
 
-## Screeshot
+## Screenshot
 
 ![Screenshot](https://github.com/saiftynet/EZPWC/blob/master/EZPWC.png)
