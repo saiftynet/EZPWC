@@ -38,7 +38,7 @@ loadConfig();
 setupDirectory();        # step 1 set up a directory locally if it has not been setup
 setupGithub();           # step 2 set up user's existing github account or setting up a new one
 makeFork();              # step 3 set up fork if not already forked
-clone();                 # step 4 fork if not already forked
+clone();                 # step 4 clone if not already cloned
 addUpstream();           # step 5 ensure upstream has been set up 
 fetchUpstream();         # step 6 fetch upstream
 getChallenges();         # step 7 get challenges from manwar's PWC blog
