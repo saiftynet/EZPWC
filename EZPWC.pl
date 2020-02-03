@@ -208,6 +208,7 @@ sub getChallenges{
 	print "Task #1\n",$config{task1};
 	prompt ("Press any key");
 	print "\nTask #2\n", $config{task2};
+	prompt ("Press any key");
 	
 }
 
