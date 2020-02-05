@@ -25,7 +25,7 @@ use LWP::Simple qw($ua get head);
 use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
 
-my $VERSION=0.02;
+my $VERSION=0.03;
 
 my $OS=$^O;
 my %config;
@@ -33,7 +33,6 @@ my $workingDirectory="$ENV{HOME}/PerlChallenges";
 print "Starting EZPWC \n";
 
 loadConfig();
-
 setupDirectory();        # step 1 set up a directory locally if it has not been setup
 setupGithub();           # step 2 set up user's existing github account or setting up a new one
 makeFork();              # step 3 set up fork if not already forked
@@ -135,7 +134,7 @@ sub clone{
 	else {
 		$config{clone}=0;
 		chdir $config{workingDirectory};
-		"Attempting to clone repo https://github.com/$config{githubUN}/$config{repoName}\n";	
+		print "Attempting to clone repo https://github.com/$config{githubUN}/$config{repoName}\n";	
 		my $response= `git clone https://github.com/$config{githubUN}/$config{repoName}`;
 		if ($response !~/^fatal/g){
 			print "Success cloning repo";
@@ -216,9 +215,15 @@ sub getBranches{
 	print "\n\nGetting branches ";
 	my $br=`git ls-remote --heads`;
 	my @matches = ($br =~ /refs\/heads\/(.+)\n/mg);
-	print "\nBranches found : -",join ", ",@matches;
-	if ($br=~/refs\/heads\/branch-$config{currentweek}\n/gm){
+	print "\nRemote Branches found : -",join ", ",@matches;
+	my $abr=`git branch`;
+	$abr=~s/\s+/ /gm;
+	print "\nBranches found : - $abr\n";
+	
+	
+	if ($abr=~/\bbranch-$config{currentweek}\b/gm){
 		print "\nBranch for current week ($config{currentweek}) found\n\n";
+		print `git checkout branch-$config{currentweek}`;
 	}
 	else{
 		print "\nBranch for current week ($config{currentweek}) not found\nCreating branch-$config{currentweek}\n";
@@ -226,8 +231,16 @@ sub getBranches{
 	}
 	print "Now add your responses to folder \n".
 	      "$config{workingDirectory}/challenge-$config{currentweek}/$config{githubUN}/\n";
-	prompt ("Press any key");  
+	prompt ("Get ready to code!!");  
 	  }
+	  
+sub readyToCode{
+	# Auto gnerate perl scripts for PWC solutions
+	
+	
+	
+	
+}	  
 
 sub readyToAdd{
 	print "If you have added you responses to the folder and\n".
@@ -315,15 +328,16 @@ sub loadConfig{
 	}
 
 	print "Failed to load config, continuing with defaults\n";
-	unlink ($config{workingDirectory}."/Config");
+	unlink ("$workingDirectory/Config");
 	%config=(
 				repoName			 => "perlweeklychallenge-club",
 				repoOwner			 => "manwar",
 				workingDirectory     => "$ENV{HOME}/PerlChallenges",
 				clone                => undef,
-				githubUN			 => undef,
+				githubUN			 => "",
 				"fork"				 => undef,
 				upstream			 => undef,
 			);
+	saveConfig()
 		
 }
