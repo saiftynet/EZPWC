@@ -25,7 +25,7 @@ use LWP::Simple qw($ua get head);
 use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
 
-my $VERSION=0.03;
+my $VERSION=0.04;
 
 my $OS=$^O;
 my %config;
@@ -41,6 +41,7 @@ addUpstream();           # step 5 ensure upstream has been set up
 fetchUpstream();         # step 6 fetch upstream
 getChallenges();         # step 7 get challenges from manwar's PWC blog
 getBranches();           # step 8 get branches, and set one up for this week if required
+code();                  # step 9 start coding
 readyToAdd();            # step 9 once ready to add
 saveConfig();	
 print "\n\nAll done...good bye!!";
@@ -204,9 +205,9 @@ sub getChallenges{
 
 	print "\n\nCurrent week = $config{currentweek}\n";
 	prompt ("Press any key");
-	print "Task #1\n",$config{task1};
+	print "# Task #1".commentWrap($config{task1});
 	prompt ("Press any key");
-	print "\nTask #2\n", $config{task2};
+	print "# Task #2".commentWrap($config{task2});
 	prompt ("Press any key");
 	
 }
@@ -229,29 +230,72 @@ sub getBranches{
 		print "\nBranch for current week ($config{currentweek}) not found\nCreating branch-$config{currentweek}\n";
 		print `git checkout -b branch-$config{currentweek}`;
 	}
-	print "Now add your responses to folder \n".
-	      "$config{workingDirectory}/challenge-$config{currentweek}/$config{githubUN}/\n";
+	print "Now add your responses to folder ".pathToChallenge()."\n";
 	prompt ("Get ready to code!!");  
+	
 	  }
-	  
+
+sub code{
+	while (readyToCode() ne "skip"){}	
+}
+
 sub readyToCode{
-	# Auto gnerate perl scripts for PWC solutions
-	
-	
-	
-	
+	# Auto generate perl scripts for PWC solutions
+	my $language=prompt ("Select Language\n1) Perl\n2) Raku\n3) Other\n4) Skip\n");
+	return "skip" if $language !~/^1|2|3$/;
+	my $dir=pathToChallenge().(("","perl","raku","other")[$language]);
+	print "Making directory $dir, if not already present\n";
+	mkdir $dir unless -d $dir;
+	my $task=prompt ("Select Task\n1) Task 1\n2) Task 2\n3) Skip\n");
+	return  "skip" if $task !~/^1|2$/;
+	my $file=$dir."/ch-$task.".(("","pl","p6","")[$language]);
+	my $shebang=(("","#!/usr/env/perl\n","#!perl6 \n","")[$language]);
+	if (-e $file){
+		browse2 ($file);
+	}
+	else{
+		writeFile($file,"$shebang# Task #1".commentWrap($config{task1}) );
+		browse2 ($file);
+	}
+	return "next";
 }	  
+
+sub pathToChallenge{
+	return $config{workingDirectory}."/".
+		      $config{repoName} ."/". "challenge-".
+		      $config{currentweek}."/".
+		      $config{githubUN}."/";
+}
+
+sub commentWrap{
+	my $text=shift;
+	my $columns=70;
+	my $wrapped="# ";my $count=0;
+	foreach my $ch(split //,$text){
+		$wrapped.=$ch;
+		if ($ch eq "\n"){
+			$wrapped.="# ";
+			$count=0;
+		}
+		elsif (($count>$columns)&&($ch=~/\s/)){
+			$wrapped.="\n# ";
+			$count=0;
+			}
+		else {$count++}
+	}
+	return $wrapped;
+}
 
 sub readyToAdd{
 	print "If you have added you responses to the folder and\n".
 	      "you have tested them to your satisfaction, \n".
 	      "you can now commit the answers - press 'y' if ready.\n".
 	      "If you are not ready, just press 'n'...\n";
-	my $response=prompt ("Are you ready to commit yor changes? (y/n)");
+	my $response=prompt ("Are you ready to commit your changes? (y/n)");
 	if ($response =~/y/i){
 		print "Adding current week's ($config{currentweek}) challenges...\n";
 		print `git add challenge-$config{currentweek}/$config{githubUN}`;
-		print `git commit`;
+		print `git commit --author=$config{githubUN} --message="Submitted using EZPWC"`;
 		print "Pushing results to your github...\n";
 		print `git  push -u origin branch-$config{currentweek}`;
 		print "Now time to create a pull request.  Browser should open\n".
@@ -300,6 +344,15 @@ sub browse2{
 	if     ($OS eq "linux")   {`xdg-open $URL`   }
 	elsif  ($OS eq "MSWin32") {	`start /max $URL`}
 	elsif  ($OS eq "darwin") {	`open "$URL"`}
+}
+
+
+sub writeFile{
+	my ($file,$text)=@_;
+	open(my $fh, '>', $file) or
+         die "Could not open file '$file' $!";
+    print $fh $text;
+    close $fh;
 }
 
 sub saveConfig{
