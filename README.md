@@ -16,7 +16,7 @@ This is a script that hopefully eases the interactions between the Chellenge par
 
 
 ## Installation: -
-Prerequisites: Uses the modules LWP::Simple, Cwd, Scalar::Util
+Prerequisites: Uses the modules LWP::Simple, Cwd, Scalar::Util, Term::ANSI (color)
 
 Simply Copy file to a suitable location and make it executable, or execute it using perl EZPWC.pl.
 The file may be editted to allow change in location of the git clone...by default it is in a working directory  in the home folder.  Changing the following line can change the target folder.
