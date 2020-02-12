@@ -29,3 +29,6 @@ A working directory is created, a clone is stored within this directory, and als
 ## Screenshot
 
 ![Screenshot](https://github.com/saiftynet/EZPWC/blob/master/EZPWC.png)
+
+![Screenshot](https://github.com/saiftynet/EZPWC/blob/master/EZPWC colorised.png)
+
