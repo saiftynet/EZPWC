@@ -205,12 +205,12 @@ sub getChallenges{
     }
 
 	print "\n\nCurrent week = $config{currentweek}\n";
-	prompt ("Press any key");
-	print "# Task #1".commentWrap($config{task1});
-	prompt ("\nPress any key");
-	print "# Task #2".commentWrap($config{task2});
-	prompt ("\nPress any key");
-	
+	my $task=prompt ("Select Task to see\n1) Task 1\n2) Task 2\n3) Skip\n");
+	while ($task  =~/^1|2$/){
+	   print color('bold green'),"#********* Task $task Week $config{currentweek} *********#\n" ,color('reset'),
+	        ($task =~/^1/)?commentWrap($config{task1}):commentWrap($config{task2});
+	   $task=prompt ("\nSelect Task to see\n1) Task 1\n2) Task 2\n3) Skip\n");
+    }
 }
 
 sub getBranches{
@@ -288,10 +288,10 @@ sub commentWrap{
 }
 
 sub readyToAdd{
-	print "If you have added you responses to the folder and\n".
+	print "If you have added your responses to the folder and\n".
 	      "you have tested them to your satisfaction, \n".
 	      "you can now commit the answers - press 'y' if ready.\n".
-	      "If you are not ready, just press 'n'...\n";
+	      "If you are not ready, just press 'n' and come back next time.\n";
 	my $response=prompt ("Are you ready to commit your changes? (y/n)");
 	if ($response =~/y/i){
 		print "Adding current week's ($config{currentweek}) challenges...\n";
@@ -311,8 +311,9 @@ sub prompt{
 	my ($message,$validation)=@_;
 	print color('bold red');
 	print shift; print  " >>";
-	print color('reset');
+	print color('bold yellow');
 	chomp(my $response=<>);
+	print color('reset');
 	return $response; 
 }
 
@@ -345,7 +346,7 @@ sub findItem{
 sub browse2{
 	my ($URL)=(shift);
 	print color('bold cyan');
-	print "Browser opening $URL, ($OS)\n";
+	print "Opening $URL, ($OS)\n";
 	if     ($OS eq "linux")   {`xdg-open $URL`   }
 	elsif  ($OS eq "MSWin32") {	`start /max $URL`}
 	elsif  ($OS eq "darwin") {	`open "$URL"`};
