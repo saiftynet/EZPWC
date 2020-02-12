@@ -26,7 +26,7 @@ use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
 use Term::ANSIColor;
 
-my $VERSION=0.04;
+my $VERSION=0.05;
 
 my $OS=$^O;
 my %config;
