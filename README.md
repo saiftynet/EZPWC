@@ -12,6 +12,8 @@ This is a script that hopefully eases the interactions between the Chellenge par
 * It then allows user to make changes, and finally adds to branch, commits and pushes
 ** Update: Commit hands with "hint: waiting to close editor".  This may be due to `git commit` attempting to open an editor to edit the commit message.  The this has been updated to `git commit --authors=$config{githubUN} --message="message"`.  This may work better.
 * It then takes user to GitHub to create a pull request. 
+* Interactions include a bit of colourisation for readability.
+
 
 ## Installation: -
 Prerequisites: Uses the modules LWP::Simple, Cwd, Scalar::Util
