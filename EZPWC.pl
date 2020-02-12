@@ -24,13 +24,14 @@ use strict;use warnings;
 use LWP::Simple qw($ua get head);
 use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
+use Term::ANSIColor;
 
 my $VERSION=0.04;
 
 my $OS=$^O;
 my %config;
 my $workingDirectory="$ENV{HOME}/PerlChallenges";
-print "Starting EZPWC \n";
+print color('bold green'),"Starting EZPWC \n",color('reset'),;
 
 loadConfig();
 setupDirectory();        # step 1 set up a directory locally if it has not been setup
@@ -204,12 +205,12 @@ sub getChallenges{
     }
 
 	print "\n\nCurrent week = $config{currentweek}\n";
-	prompt ("Press any key");
-	print "# Task #1".commentWrap($config{task1});
-	prompt ("Press any key");
-	print "# Task #2".commentWrap($config{task2});
-	prompt ("Press any key");
-	
+	my $task=prompt ("Select Task to see\n1) Task 1\n2) Task 2\n3) Skip\n");
+	while ($task  =~/^1|2$/){
+	   print color('bold green'),"#********* Task $task Week $config{currentweek} *********#\n" ,color('reset'),
+	        ($task =~/^1/)?commentWrap($config{task1}):commentWrap($config{task2});
+	   $task=prompt ("\nSelect Task to see\n1) Task 1\n2) Task 2\n3) Skip\n");
+    }
 }
 
 sub getBranches{
@@ -287,15 +288,16 @@ sub commentWrap{
 }
 
 sub readyToAdd{
-	print "If you have added you responses to the folder and\n".
+	print "If you have added your responses to the folder and\n".
 	      "you have tested them to your satisfaction, \n".
 	      "you can now commit the answers - press 'y' if ready.\n".
-	      "If you are not ready, just press 'n'...\n";
+	      "If you are not ready, just press 'n' and come back next time.\n";
 	my $response=prompt ("Are you ready to commit your changes? (y/n)");
 	if ($response =~/y/i){
 		print "Adding current week's ($config{currentweek}) challenges...\n";
 		print `git add challenge-$config{currentweek}/$config{githubUN}`;
-		print `git commit --author=$config{githubUN} --message="Submitted using EZPWC"`;
+		print "Commiting changes...\n";
+		print `git commit --author=$config{githubUN} --message="Challenge-$config{currentweek} solutions by $config{githubUN} submitted using EZPWC"`;
 		print "Pushing results to your github...\n";
 		print `git  push -u origin branch-$config{currentweek}`;
 		print "Now time to create a pull request.  Browser should open\n".
@@ -307,8 +309,11 @@ sub readyToAdd{
 
 sub prompt{
 	my ($message,$validation)=@_;
+	print color('bold red');
 	print shift; print  " >>";
+	print color('bold yellow');
 	chomp(my $response=<>);
+	print color('reset');
 	return $response; 
 }
 
@@ -340,10 +345,12 @@ sub findItem{
 
 sub browse2{
 	my ($URL)=(shift);
-	print "Browser opening $URL, ($OS)";
+	print color('bold cyan');
+	print "Opening $URL, ($OS)\n";
 	if     ($OS eq "linux")   {`xdg-open $URL`   }
 	elsif  ($OS eq "MSWin32") {	`start /max $URL`}
-	elsif  ($OS eq "darwin") {	`open "$URL"`}
+	elsif  ($OS eq "darwin") {	`open "$URL"`};
+	print color('reset');
 }
 
 
