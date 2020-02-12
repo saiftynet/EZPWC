@@ -7,9 +7,11 @@ This is a script that hopefully eases the interactions between the Chellenge par
 * It forks, and then creates a local clone if it hasn't already been done
 * It adds/ fetches upstream
 * It extracts the latest week's challenges
-* It creates a new branch for current week if not already created
+* It creates a new branch for current week if not already created.
+** Update: now interactively creates a solutions folder and files to edit
 * It then allows user to make changes, and finally adds to branch, commits and pushes
-* It then takes user to GitHub ot create a pull request. 
+** Update: Commit hands with "hint: waiting to close editor".  This may be due to `git commit` attempting to open an editor to edit the commit message.  The this has been updated to `git commit --authors=$config{githubUN} --message="message"`.  This may work better.
+* It then takes user to GitHub to create a pull request. 
 
 ## Installation: -
 Prerequisites: Uses the modules LWP::Simple, Cwd, Scalar::Util
