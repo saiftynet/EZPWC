@@ -32,5 +32,5 @@ A working directory is created, a clone is stored within this directory, and als
 
 ![Screenshot](https://github.com/saiftynet/EZPWC/blob/master/EZPWC.png)
 
-![Screenshot2](https://github.com/saiftynet/EZPWC/blob/color/EZPWC%20colorised.png)
+![Screenshot2](https://github.com/saiftynet/EZPWC/blob/master/EZPWC%20colorised.png)
 
