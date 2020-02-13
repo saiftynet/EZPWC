@@ -26,7 +26,7 @@ use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
 use Term::ANSIColor;
 
-my $VERSION=0.05;
+my $VERSION=0.04;
 
 my $OS=$^O;
 my %config;
@@ -255,7 +255,8 @@ sub readyToCode{
 		browse2 ($file);
 	}
 	else{
-		writeFile($file,"$shebang# Task #1".commentWrap($config{task1}) );
+		writeFile($file,"$shebang# Task $task Challenge $config{currentweek} Solution by $config{githubUN}\n".
+		                 commentWrap($config{"task$task"}) );
 		browse2 ($file);
 	}
 	return "next";
@@ -307,6 +308,10 @@ sub readyToAdd{
 }
 
 
+sub clearScreen{ # https://www.perlmonks.org/?node_id=18774
+	system $^O eq 'MSWin32' ? 'cls' : 'clear';
+}
+
 sub prompt{
 	my ($message,$validation)=@_;
 	print color('bold red');
@@ -314,7 +319,7 @@ sub prompt{
 	print color('bold yellow');
 	chomp(my $response=<>);
 	print color('reset');
-	return $response; 
+	return $response;
 }
 
 sub URLexists{
