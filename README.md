@@ -28,6 +28,14 @@ Execute the file and prompts will follow. At some points, the default browser ma
 
 A working directory is created, a clone is stored within this directory, and also withing this director is a Config file that is created to store settings and preferences.
 
+## To Do:-
+* Have a better menu system...maybe migrate to Curses, or GUI e.g. Tk, Win32 or Gtk
+* Allow testing of scripts before submitting
+* Allow exploring of previous challenges
+* Perhaps check for updates
+Allow statistical analysis
+
+
 ## Screenshot
 
 ![Screenshot](https://github.com/saiftynet/EZPWC/blob/master/EZPWC.png)
