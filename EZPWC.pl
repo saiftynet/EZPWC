@@ -5,35 +5,21 @@
 # present, forks the repo if needed, creates a clone, registers upstream,
 # fetches the upstream and gets the most recent challenges.
 
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
-#  (at your option) any later version.
-#  
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#  
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
-#  
 use strict;use warnings;
 use LWP::Simple qw($ua get head);
 use Cwd qw(getcwd);
 use Scalar::Util qw(looks_like_number);
 use Term::ANSIColor;
 
-my $VERSION=0.051;
+my $VERSION=0.06;
 
 my $OS=$^O;
 my %config;
 my $workingDirectory="$ENV{HOME}/PerlChallenges";
-print color('bold green'),"Starting EZPWC \n",color('reset'),;
+print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 
 loadConfig();
+versionCheck();          
 setupDirectory();        # step 1 set up a directory locally if it has not been setup
 setupGithub();           # step 2 set up user's existing github account or setting up a new one
 makeFork();              # step 3 set up fork if not already forked
@@ -42,11 +28,36 @@ addUpstream();           # step 5 ensure upstream has been set up
 fetchUpstream();         # step 6 fetch upstream
 getChallenges();         # step 7 get challenges from manwar's PWC blog
 getBranches();           # step 8 get branches, and set one up for this week if required
-code();                  # step 9 start coding
-readyToAdd();            # step 9 once ready to add
+readyToCode();           # step 9 start coding
+readyToAdd();            # step 10 ready to add
 saveConfig();	
-print "\n\nAll done...good bye!!";
+print color('bold green'),"\n\nAll done...good bye!!\n",color('reset');
 exit 0;
+
+
+sub versionCheck{
+	my $vc;
+	my $check=$config{versionCheck};
+	if (!$check){
+		$vc=prompt("Do you wish to check for newer versions? (Select 1-3)\n1) Yes, every time \n2) Yes this time only \n3) Not at this time\n");
+		$check=($vc=~/^1|2$/)?1:0;
+		$config{versionCheck}=(1==$vc);
+	 }
+	 if ($check){
+		my $source="https://raw.githubusercontent.com/saiftynet/EZPWC/master/EZPWC.pl";
+        my $latest= findItem($source,qr/VERSION=([\d\.]+);/m);
+		if ($latest==$VERSION){
+		  print "This is the latest version\n;"
+		}
+		elsif ($latest>$VERSION){
+		  print "Newer version exists\n;";
+		}
+		else {
+		  print "You are more recent than github\n"
+		}
+	}
+}
+
 
 sub setupDirectory{
 	if ( -e $config{workingDirectory} and -d $config{workingDirectory}){
@@ -121,7 +132,6 @@ sub makeFork{
 	}
 	$config{"fork"}=undef if ($config{"fork"} eq "skipped");
 }
-
 
 sub clone{
 	if (!$config{"fork"})   {print "Fork not setup so cannot clone\n";return}; 
@@ -215,13 +225,12 @@ sub getChallenges{
 
 sub getBranches{
 	print "\n\nGetting branches ";
-	my $br=`git ls-remote --heads`;
-	my @matches = ($br =~ /refs\/heads\/(.+)\n/mg);
+	my $br=`git branch --remote`;
+	my @matches = grep ($_ !~/HEAD|master/,($br =~ /origin\/([^\s\n]+)/mg) );
 	print "\nRemote Branches found : -",join ", ",@matches;
 	my $abr=`git branch`;
 	$abr=~s/\s+/ /gm;
 	print "\nBranches found : - $abr\n";
-	
 	
 	if ($abr=~/\bbranch-$config{currentweek}\b/gm){
 		print "\nBranch for current week ($config{currentweek}) found\n\n";
@@ -236,30 +245,28 @@ sub getBranches{
 	
 	  }
 
-sub code{
-	while (readyToCode() ne "skip"){}	
-}
 
 sub readyToCode{
-	# Auto generate perl scripts for PWC solutions
-	my $language=prompt ("Select Language\n1) Perl\n2) Raku\n3) Other\n4) Skip\n");
-	return "skip" if $language !~/^1|2|3$/;
-	my $dir=pathToChallenge().(("","perl","raku","other")[$language]);
-	print "Making directory $dir, if not already present\n";
-	mkdir $dir unless -d $dir;
-	my $task=prompt ("Select Task\n1) Task 1\n2) Task 2\n3) Skip\n");
-	return  "skip" if $task !~/^1|2$/;
-	my $file=$dir."/ch-$task.".(("","pl","p6","")[$language]);
-	my $shebang=(("","#!/usr/env/perl\n","#!perl6 \n","")[$language]);
-	if (-e $file){
-		browse2 ($file);
+	while (1){
+		# Auto generate perl scripts for PWC solutions
+		my $language=prompt ("Select Language\n1) Perl\n2) Raku\n3) Other\n4) Skip\n");
+		last if $language !~/^1|2|3$/;
+		my $dir=pathToChallenge().(("","perl","raku","other")[$language]);
+		print "Making directory $dir, if not already present\n";
+		mkdir $dir unless -d $dir;
+		my $task=prompt ("Select Task\n1) Task 1\n2) Task 2\n3) Skip\n");
+		last if $task !~/^1|2$/;
+		my $file=$dir."/ch-$task.".(("","pl","p6","")[$language]);
+		my $shebang=(("","#!/usr/env/perl\n","#!perl6 \n","")[$language]);
+		if (-e $file){
+			browse2 ($file);
+		}
+		else{
+			writeFile($file,"$shebang# Task $task Challenge $config{currentweek} Solution by $config{githubUN}\n".
+							 commentWrap($config{"task$task"}) );
+			browse2 ($file);
+		}
 	}
-	else{
-		writeFile($file,"$shebang# Task $task Challenge $config{currentweek} Solution by $config{githubUN}\n".
-		                 commentWrap($config{"task$task"}) );
-		browse2 ($file);
-	}
-	return "next";
 }	  
 
 sub pathToChallenge{
@@ -307,7 +314,6 @@ sub readyToAdd{
 	}
 }
 
-
 sub clearScreen{ # https://www.perlmonks.org/?node_id=18774
 	system $^O eq 'MSWin32' ? 'cls' : 'clear';
 }
@@ -335,13 +341,13 @@ sub upstreamExists{
 	return $remote =~/^upstream/m;
 }
 
-sub findItem{
+sub findItem{   #ultra-simple scraper LWP::get->regexp
 	my ($url,$re)=@_;
 	my $wp=get($url);
 	if($wp=~/$re/){
 		my $result=$1;
-		$result=~s/<[^>]*>//gm;
-		$result=~s/^\n+|\n+$/\n/gm;
+		$result=~s/<[^>]*>//gm;      # remove tags
+		$result=~s/^\n+|\n+$/\n/gm;  # remove starting and ending \n
 		return $result;
 		}
 	else {return -1};
@@ -367,7 +373,7 @@ sub writeFile{
     close $fh;
 }
 
-sub saveConfig{
+sub saveConfig{  ## crude way to save %config into a file
     open(my $fh, '>', $config{workingDirectory}.'/Config') or
          die "Could not open file '$config{workingDirectory}/Config' $!";
     for (sort keys %config){
@@ -382,8 +388,8 @@ sub saveConfig{
 }
 
 sub loadConfig{
-	if (-e "$workingDirectory/Config") {
-		if (%config=do "$workingDirectory/Config" ){
+	if (-e "$workingDirectory/Config") { 
+		if (%config=do "$workingDirectory/Config" ){   ## crude way to load %config from a file
 			print "Config successfully loaded\n";
 			return;
 		}
