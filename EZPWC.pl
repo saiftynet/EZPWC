@@ -6,12 +6,11 @@
 # fetches the upstream and gets the most recent challenges.
 
 use strict;use warnings;
-use LWP::Simple qw($ua get head);
+use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
-use Scalar::Util qw(looks_like_number);
 use Term::ANSIColor;
 
-my $VERSION=0.06;
+my $VERSION=0.065;
 
 my $OS=$^O;
 my %config;
@@ -39,7 +38,7 @@ sub versionCheck{
 	my $vc;
 	my $check=$config{versionCheck};
 	if (!$check){
-		$vc=prompt("Do you wish to check for newer versions? (Select 1-3)\n1) Yes, every time \n2) Yes this time only \n3) Not at this time\n");
+		$vc=prompt("Do you wish to check for newer versions?:-",["Yes, every time","Yes this time only","Not at this time"]);
 		$check=($vc=~/^1|2$/)?1:0;
 		$config{versionCheck}=(1==$vc);
 	 }
@@ -47,17 +46,24 @@ sub versionCheck{
 		my $source="https://raw.githubusercontent.com/saiftynet/EZPWC/master/EZPWC.pl";
         my $latest= findItem($source,qr/VERSION=([\d\.]+);/m);
 		if ($latest==$VERSION){
-		  print "This is the latest version\n;"
+		  print "This is the latest version\n";
+		  
 		}
 		elsif ($latest>$VERSION){
-		  print "Newer version exists\n;";
+		  my $input=prompt("Newer version exists\nDo you wish to",["Download latest version into working directory and restart",
+		                                     "Download here (e.g if working from clone)",
+		                                     "Stop checking for updates",
+		                                     "Skip this"]);
+           getstore($source, $config{workingDirectory}."EZPWC.pl") if $input eq 1;
+           getstore($source, "EZPWC.pl") if $input eq 2;
+		 
+ 
 		}
 		else {
-		  print "You are more recent than github\n"
+		  print "You are more recent than github\n";
 		}
 	}
 }
-
 
 sub setupDirectory{
 	if ( -e $config{workingDirectory} and -d $config{workingDirectory}){
@@ -80,7 +86,7 @@ sub setupGithub{
 	
 	print "Attempting to setup github...\n";
 
-	while ($config{githubUN} eq ""){  # setup github, and fork the repo   
+	while (not $config{githubUN}){  # setup github, and fork the repo   
 	   $config{githubUN} = prompt ("Enter your github username or S to skip or C to create one: \n"); 
 	   if ($config{githubUN} =~/^s$/i){
 		   $config{githubUN}="..Skipped";
@@ -204,22 +210,26 @@ sub fetchUpstream{
 	}
 }
 
-sub getChallenges{
-	print "\n\nGetting challenges\n";
+sub getChallenges{   # extracts week number from index page,
+	print "\nGetting challenges\n";
 	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
 	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
-		$config{currentBranch}=undef;
-		$config{currentweek}=$week ;
-	    $config{task1}  = findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",qr/TASK #1<\/h2>([\s\S]*)<h2 id="task-2">/m);
-	    $config{task2}  = findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",qr/TASK #2<\/h2>([\s\S]*)<p>Last date /m);
+		$config{currentBranch}=undef;      # undefines current branch
+		$config{currentweek}="$week" ;     # sets current week
+	    $config{task1}  = stripWrap(       # extracts tasks and stores them
+	                      findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",
+	                      qr/TASK #1<\/h2>([\s\S]*)<h2 id="task-2">/m),60);
+	    $config{task2}  = stripWrap(
+	                      findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",
+	                      qr/TASK #2<\/h2>([\s\S]*)<p>Last date /m),60);
     }
 
-	print "\n\nCurrent week = $config{currentweek}\n";
-	my $task=prompt ("Select Task to see\n1) Task 1\n2) Task 2\n3) Skip\n");
+	print "\nCurrent week = $config{currentweek}\n\n";
+	my $task=prompt ("Select Task to see",["Task 1","Task 2","Skip"]);
 	while ($task  =~/^1|2$/){
 	   print color('bold green'),"#********* Task $task Week $config{currentweek} *********#\n" ,color('reset'),
-	        ($task =~/^1/)?commentWrap($config{task1}):commentWrap($config{task2});
-	   $task=prompt ("\nSelect Task to see\n1) Task 1\n2) Task 2\n3) Skip\n");
+	        ($task =~/^1/)?comment($config{task1},"#"):comment($config{task2},"#");
+	   $task=prompt ("\nSelect Task to see",["Task 1","Task 2","Skip"]);
     }
 }
 
@@ -235,26 +245,27 @@ sub getBranches{
 	if ($abr=~/\bbranch-$config{currentweek}\b/gm){
 		print "\nBranch for current week ($config{currentweek}) found\n\n";
 		print `git checkout branch-$config{currentweek}`;
+		$config{currentBranch}//="branch-$config{currentweek}";
 	}
 	else{
 		print "\nBranch for current week ($config{currentweek}) not found\nCreating branch-$config{currentweek}\n";
 		print `git checkout -b branch-$config{currentweek}`;
+		$config{currentBranch}="branch-$config{currentweek}";
 	}
 	print "Now add your responses to folder ".pathToChallenge()."\n";
 	prompt ("Get ready to code!!");  
 	
 	  }
 
-
 sub readyToCode{
 	while (1){
 		# Auto generate perl scripts for PWC solutions
-		my $language=prompt ("Select Language\n1) Perl\n2) Raku\n3) Other\n4) Skip\n");
+		my $language=prompt ("Select Language:-",[qw/Perl Raku Other Skip/]);
 		last if $language !~/^1|2|3$/;
 		my $dir=pathToChallenge().(("","perl","raku","other")[$language]);
 		print "Making directory $dir, if not already present\n";
 		mkdir $dir unless -d $dir;
-		my $task=prompt ("Select Task\n1) Task 1\n2) Task 2\n3) Skip\n");
+		my $task=prompt ("Select Task to work on:-",["Task 1","Task 2","Skip"]);
 		last if $task !~/^1|2$/;
 		my $file=$dir."/ch-$task.".(("","pl","p6","")[$language]);
 		my $shebang=(("","#!/usr/env/perl\n","#!perl6 \n","")[$language]);
@@ -263,11 +274,13 @@ sub readyToCode{
 		}
 		else{
 			writeFile($file,"$shebang# Task $task Challenge $config{currentweek} Solution by $config{githubUN}\n".
-							 commentWrap($config{"task$task"}) );
+							 comment($config{"task$task"},"#"));
 			browse2 ($file);
 		}
 	}
 }	  
+
+
 
 sub pathToChallenge{
 	return $config{workingDirectory}."/".
@@ -276,23 +289,30 @@ sub pathToChallenge{
 		      $config{githubUN}."/";
 }
 
-sub commentWrap{
-	my $text=shift;
-	my $columns=70;
-	my $wrapped="# ";my $count=0;
+sub stripWrap{                 # strip tags and wrap text 
+	my ($text,$columns)=@_;
+	$text=~s/<[^>]*>//gm;      # remove tags
+	$text=~s/^\n+|\n+$/\n/gm;  # remove starting and ending \n
+	$columns//=60;             # default characters per column approx 60
+	my $count=0; my $wrapped="";
 	foreach my $ch(split //,$text){
 		$wrapped.=$ch;
 		if ($ch eq "\n"){
-			$wrapped.="# ";
 			$count=0;
 		}
 		elsif (($count>$columns)&&($ch=~/\s/)){
-			$wrapped.="\n# ";
+			$wrapped.="\n";
 			$count=0;
 			}
 		else {$count++}
 	}
 	return $wrapped;
+}
+
+sub comment{
+	my  ($text,$commentString)=@_;
+	$text=~s/\n/\n$commentString /mg;
+	return $text; 
 }
 
 sub readyToAdd{
@@ -319,9 +339,16 @@ sub clearScreen{ # https://www.perlmonks.org/?node_id=18774
 }
 
 sub prompt{
-	my ($message,$validation)=@_;
-	print color('bold red');
-	print shift; print  " >>";
+	my ($message,$options,$validation)=@_;
+	print color('bold red'),$message;
+	if (ref $options eq "ARRAY"){
+		my $index=1;
+		print "\n";
+		foreach (@$options){
+			print color('bold green'),$index++,") ",$_,"\n";
+		}
+	}
+	print color('bold red')," >>";
 	print color('bold yellow');
 	chomp(my $response=<>);
 	print color('reset');
@@ -343,16 +370,8 @@ sub upstreamExists{
 
 sub findItem{   #ultra-simple scraper LWP::get->regexp
 	my ($url,$re)=@_;
-	my $wp=get($url);
-	if($wp=~/$re/){
-		my $result=$1;
-		$result=~s/<[^>]*>//gm;      # remove tags
-		$result=~s/^\n+|\n+$/\n/gm;  # remove starting and ending \n
-		return $result;
-		}
-	else {return -1};
+	return (get($url)=~/$re/)? $1:-1;
 }
-
 
 sub browse2{
 	my ($URL)=(shift);
@@ -378,10 +397,10 @@ sub saveConfig{  ## crude way to save %config into a file
          die "Could not open file '$config{workingDirectory}/Config' $!";
     for (sort keys %config){
 		if (defined $config{$_}){
-			print $fh " $_  => ".(looks_like_number($config{$_})?$config{$_}:"'$config{$_}'").",\n";
+			print $fh " $_  => '$config{$_}',\n";
 		}
 		else{
-			print $fh " $_  => undef,\n"
+			print $fh " $_  => '',\n"
 		}
 	}
 	close $fh;
