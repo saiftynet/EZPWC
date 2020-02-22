@@ -13,8 +13,9 @@ use Term::ANSIColor;
 my $VERSION=0.065;
 
 my $OS=$^O;
+my $directorySeparator= ($^O=~/Win/)?"\\":"/";  # should probably use File::Spec
 my %config;
-my $workingDirectory="$ENV{HOME}/PerlChallenges";
+my $workingDirectory="$ENV{HOME}".$directorySeparator."PerlChallenges";
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 
 loadConfig();
@@ -54,7 +55,7 @@ sub versionCheck{
 		                                     "Download here (e.g if working from clone)",
 		                                     "Stop checking for updates",
 		                                     "Skip this"]);
-           getstore($source, $config{workingDirectory}."EZPWC.pl") if $input eq 1;
+           getstore($source, $config{workingDirectory}.$directorySeparator."EZPWC.pl") if $input eq 1;
            getstore($source, "EZPWC.pl") if $input eq 2;
 		 
  
@@ -144,8 +145,8 @@ sub clone{
 	if ($config{"clone"})   {print "Clone found\n";return};
 	
 	print "cloning repo\n";
-	if  ( -e "$config{workingDirectory}/$config{repoName}" and 
-	                  -d "$config{workingDirectory}/$config{repoName}") {
+	if  ( -e "$config{workingDirectory}".$directorySeparator."$config{repoName}" and 
+	                  -d "$config{workingDirectory}".$directorySeparator."$config{repoName}") {
 		print "Clone already appears to exist\n";
 		$config{clone}=1;
 	}					  
@@ -164,7 +165,7 @@ sub clone{
 
 sub addUpstream{
 	print "Checking out master\n";
-	chdir "$config{workingDirectory}/$config{repoName}";
+	chdir "$config{workingDirectory}".$directorySeparator."$config{repoName}";
 	`git checkout master`;
 	if (upstreamExists()){
 		print "Upstream already set up\n";
@@ -267,7 +268,7 @@ sub readyToCode{
 		mkdir $dir unless -d $dir;
 		my $task=prompt ("Select Task to work on:-",["Task 1","Task 2","Skip"]);
 		last if $task !~/^1|2$/;
-		my $file=$dir."/ch-$task.".(("","pl","p6","")[$language]);
+		my $file=$dir."ch-$task.".(("","pl","p6","")[$language]);
 		my $shebang=(("","#!/usr/env/perl\n","#!perl6 \n","")[$language]);
 		if (-e $file){
 			browse2 ($file);
@@ -283,10 +284,10 @@ sub readyToCode{
 
 
 sub pathToChallenge{
-	return $config{workingDirectory}."/".
-		      $config{repoName} ."/". "challenge-".
-		      $config{currentweek}."/".
-		      $config{githubUN}."/";
+	return $config{workingDirectory}.$directorySeparator.
+		      $config{repoName} .$directorySeparator. "challenge-".
+		      $config{currentweek}.$directorySeparator.
+		      $config{githubUN}.$directorySeparator;
 }
 
 sub stripWrap{                 # strip tags and wrap text 
