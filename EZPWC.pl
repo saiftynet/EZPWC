@@ -228,8 +228,9 @@ sub getChallenges{   # extracts week number from index page,
 	print "\nCurrent week = $config{currentweek}\n\n";
 	my $task=prompt ("Select Task to see",["Task 1","Task 2","Skip"]);
 	while ($task  =~/^1|2$/){
-	   print color('bold green'),"#********* Task $task Week $config{currentweek} *********#\n" ,color('reset'),
-	        ($task =~/^1/)?comment($config{task1},"#"):comment($config{task2},"#");
+	   print color('bold green'),"#" x 24,"  Task $task  Week $config{currentweek}  ","#" x 24,"\n",color('reset'),
+	        ($task =~/^1/)?comment($config{task1},"#",65):comment($config{task2},"#",65),
+	        color('bold green'),"#" x 68,"\n",color('reset');
 	   $task=prompt ("\nSelect Task to see",["Task 1","Task 2","Skip"]);
     }
 }
@@ -292,8 +293,10 @@ sub pathToChallenge{
 
 sub stripWrap{                 # strip tags and wrap text 
 	my ($text,$columns)=@_;
-	$text=~s/<[^>]*>//gm;      # remove tags
-	$text=~s/^\n+|\n+$/\n/gm;  # remove starting and ending \n
+	$text=~s/\n//gm;           # remove newlines
+	$text=~s/<\/p>/\n/gm;      # replace paragraph ends with newlines
+	$text=~s/<[^>]*>//gm;      # remove all other tags
+	
 	$columns//=60;             # default characters per column approx 60
 	my $count=0; my $wrapped="";
 	foreach my $ch(split //,$text){
@@ -311,9 +314,14 @@ sub stripWrap{                 # strip tags and wrap text
 }
 
 sub comment{
-	my  ($text,$commentString)=@_;
-	$text=~s/\n/\n$commentString /mg;
-	return $text; 
+	my  ($text,$commentString,$width)=@_;
+	my $ret="";my $padding;
+	foreach my $line (split "\n",$text){
+		$padding=($width and ($width-length $line>=0))?" "x($width-length $line).$commentString:"";
+		$ret.="$commentString $line$padding\n";
+		
+	}
+	return $ret; 
 }
 
 sub readyToAdd{
@@ -423,7 +431,7 @@ sub loadConfig{
 	%config=(
 				repoName			 => "perlweeklychallenge-club",
 				repoOwner			 => "manwar",
-				workingDirectory     => "$ENV{HOME}/PerlChallenges",
+				workingDirectory     => $workingDirectory,
 				clone                => undef,
 				githubUN			 => "",
 				"fork"				 => undef,
