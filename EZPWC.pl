@@ -10,7 +10,7 @@ use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.066;
+my $VERSION=0.067;
 
 my $OS=$^O;
 my $directorySeparator= ($^O=~/Win/)?"\\":"/";  # should probably use File::Spec
@@ -294,7 +294,7 @@ sub pathToChallenge{
 sub stripWrap{                 # strip tags and wrap text 
 	my ($text,$columns)=@_;
 	$text=~s/\n//gm;           # remove newlines
-	$text=~s/<\/p>/\n/gm;      # replace paragraph ends with newlines
+	$text=~s/<\/p>|<\/h3>/\n/gm;      # replace paragraph ends with newlines
 	$text=~s/<[^>]*>//gm;      # remove all other tags
 	
 	$columns//=60;             # default characters per column approx 60
