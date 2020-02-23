@@ -10,7 +10,7 @@ use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.065;
+my $VERSION=0.066;
 
 my $OS=$^O;
 my $directorySeparator= ($^O=~/Win/)?"\\":"/";  # should probably use File::Spec
@@ -268,7 +268,7 @@ sub readyToCode{
 		mkdir $dir unless -d $dir;
 		my $task=prompt ("Select Task to work on:-",["Task 1","Task 2","Skip"]);
 		last if $task !~/^1|2$/;
-		my $file=$dir."ch-$task.".(("","pl","p6","")[$language]);
+		my $file=$dir.$directorySeparator."ch-$task.".(("","pl","p6","")[$language]);
 		my $shebang=(("","#!/usr/env/perl\n","#!perl6 \n","")[$language]);
 		if (-e $file){
 			browse2 ($file);
