@@ -10,8 +10,8 @@ This is a script that hopefully eases the interactions between the Chellenge par
 * It creates a new branch for current week if not already created.
 * It interactively creates a solutions folder and files to edit if these do not already exist
 * It automatically initiates an editor on the newly created file, or if the file exists already, opens it for editing
-* It then allows user to make changes, and finally adds to branch, commits and pushes
-** Update: Commit hands with "hint: waiting to close editor".  This may be due to `git commit` attempting to open an editor to edit the commit message.  The this has been updated to `git commit --authors=$config{githubUN} --message="message"`.  This may work better.
+* It then allows user to test the code prior to submission
+* It finally adds to branch, commits and pushes
 * It then takes user to GitHub to create a pull request. 
 * Interactions include a bit of colourisation for readability.
 
