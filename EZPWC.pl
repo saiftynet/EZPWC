@@ -10,10 +10,11 @@ use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.067;
+my $VERSION=0.07;
 
 my $OS=$^O;
 my $directorySeparator= ($^O=~/Win/)?"\\":"/";  # should probably use File::Spec
+my $codeExtensions="(\.pl|\.p6|\.py|\.sh)\$";
 my %config;
 my $workingDirectory="$ENV{HOME}".$directorySeparator."PerlChallenges";
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
@@ -29,6 +30,7 @@ fetchUpstream();         # step 6 fetch upstream
 getChallenges();         # step 7 get challenges from manwar's PWC blog
 getBranches();           # step 8 get branches, and set one up for this week if required
 readyToCode();           # step 9 start coding
+readyToTest();           # step 10 test code (experimental)
 readyToAdd();            # step 10 ready to add
 saveConfig();	
 print color('bold green'),"\n\nAll done...good bye!!\n",color('reset');
@@ -280,14 +282,54 @@ sub readyToCode{
 			browse2 ($file);
 		}
 	}
-}	  
+}	
+    
+sub readyToTest{
+	prompt ("Get ready to test your code!!\n".
+	        "NOTE:- In testing your code will be executed as written\n".
+	        "There will be no safety checks so please be satisfied that\n".
+	        "it is safe to do so.");
+	my $dir=pathToChallenge();
+	my (@dirs,@scripts);
+	foreach (<$dir*>){
+		push @scripts, $_ if (-f $_) and ($_=~/$codeExtensions/);
+		push @dirs,    $_ if (-d $_);
+	}
+	
+	foreach $dir (@dirs){
+		$dir.=$directorySeparator;
+		foreach (<$dir*>){
+			push @scripts, $_ if (-f $_) and ($_=~/$codeExtensions/);
+		}
+	}
+	my @fileNames=map {/$directorySeparator([^$directorySeparator]+)$/;$1} @scripts;
+	while (1){
+	    my $response=prompt("Select file to test or 's' to skip",\@fileNames);
+	    last if  !$response or $response!~/\d/ or $response>@scripts;
+	    testCode($scripts[$response-1]);
+	    
+    }
+	
+}
 
-
+sub testCode{
+	my ($file,$dir,$extension)=pathToFileDirExtension ( shift );
+	return unless $file and $dir and $extension;
+	my $parameters=prompt("Enter any parameters you want to pass");
+	my $cwd=getcwd();
+	chdir $dir;
+	print "\n\n********* Testing:  ","$file $parameters","**********\n\n";
+	system("perl $file $parameters") if $extension=~/^pl$/i;
+	system("perl6 $file $parameters") if $extension=~/^p6$/i;
+	system("python $file $parameters") if $extension=~/^py$/i;
+	print "\n********* Finished Testing:  ",$file,"**********\n\n";
+	chdir $cwd
+}
 
 sub pathToChallenge{
 	return $config{workingDirectory}.$directorySeparator.
-		      $config{repoName} .$directorySeparator. "challenge-".
-		      $config{currentweek}.$directorySeparator.
+		      $config{repoName} .$directorySeparator.
+		       "challenge-".$config{currentweek}.$directorySeparator.
 		      $config{githubUN}.$directorySeparator;
 }
 
@@ -313,6 +355,12 @@ sub stripWrap{                 # strip tags and wrap text
 	return $wrapped;
 }
 
+sub pathToFileDirExtension{
+	my $path=shift;
+	$path=~/^(.*)$directorySeparator([^$directorySeparator]+)\.([a-z]*)$/i;
+	return ($2."\.".$3,$1,$3);
+}
+
 sub comment{
 	my  ($text,$commentString,$width)=@_;
 	my $ret="";my $padding;
@@ -325,11 +373,11 @@ sub comment{
 }
 
 sub readyToAdd{
-	print "If you have added your responses to the folder and\n".
-	      "you have tested them to your satisfaction, \n".
-	      "you can now commit the answers - press 'y' if ready.\n".
-	      "If you are not ready, just press 'n' and come back next time.\n";
-	my $response=prompt ("Are you ready to commit your changes? (y/n)");
+	my $response=prompt ("\n\nIf you have added your responses to the folder and\n".
+	      "you have tested them finally to your satisfaction \n".
+	      "you can commit the answers - press 'y' if ready.\n".
+	      "If you are not ready, just press 'n' and come back next time.\n\n".
+	      "Are you ready to commit your changes? (y/n)");
 	if ($response =~/y/i){
 		print "Adding current week's ($config{currentweek}) challenges...\n";
 		print `git add challenge-$config{currentweek}/$config{githubUN}`;
