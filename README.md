@@ -39,8 +39,6 @@ Allow statistical analysis
 
 ## Screenshot
 
-![Screenshot](https://github.com/saiftynet/EZPWC/blob/master/EZPWC.png)
-
 ![Screenshot2](https://github.com/saiftynet/EZPWC/blob/master/.images/EZPWC%20colorised.png)
 
 ![Screenshot2](https://github.com/saiftynet/EZPWC/blob/master/.images/EZPWC%20editing%20code.png)
