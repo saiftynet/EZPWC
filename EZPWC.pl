@@ -10,14 +10,20 @@ use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.07;
+my $VERSION=0.085;
 
 my $OS=$^O;
 my $directorySeparator= ($^O=~/Win/)?"\\":"/";  # should probably use File::Spec
 my $codeExtensions="(\.pl|\.p6|\.py|\.sh)\$";
 my %config;
 my $workingDirectory="$ENV{HOME}".$directorySeparator."PerlChallenges";
+
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
+# version notes
+print color('bold yellow'),
+       "\nVersion 0.085 attempts to address a possible issue\n".
+       "caused by some situations when the PWC user name does\n".
+       "not match the github user name\n\n" ,color('reset');
 
 loadConfig();
 versionCheck();          
@@ -31,7 +37,7 @@ getChallenges();         # step 7 get challenges from manwar's PWC blog
 getBranches();           # step 8 get branches, and set one up for this week if required
 readyToCode();           # step 9 start coding
 readyToTest();           # step 10 test code (experimental)
-readyToAdd();            # step 10 ready to add
+readyToAdd();            # step 11 ready to add
 saveConfig();	
 print color('bold green'),"\n\nAll done...good bye!!\n",color('reset');
 exit 0;
@@ -59,8 +65,6 @@ sub versionCheck{
 		                                     "Skip this"]);
            getstore($source, $config{workingDirectory}.$directorySeparator."EZPWC.pl") if $input eq 1;
            getstore($source, "EZPWC.pl") if $input eq 2;
-		 
- 
 		}
 		else {
 		  print "You are more recent than github\n";
@@ -162,7 +166,6 @@ sub clone{
 			$config{clone}=1;
 		};
 	}
-	
 }
 
 sub addUpstream{
@@ -307,7 +310,6 @@ sub readyToTest{
 	    my $response=prompt("Select file to test or 's' to skip",\@fileNames);
 	    last if  !$response or $response!~/\d/ or $response>@scripts;
 	    testCode($scripts[$response-1]);
-	    
     }
 	
 }
@@ -318,19 +320,42 @@ sub testCode{
 	my $parameters=prompt("Enter any parameters you want to pass");
 	my $cwd=getcwd();
 	chdir $dir;
-	print "\n\n********* Testing:  ","$file $parameters","**********\n\n";
+	print "\n\n** Testing: Response to Challenge $config{currentweek} ","$file $parameters","  **\n\n";
 	system("perl $file $parameters") if $extension=~/^pl$/i;
 	system("perl6 $file $parameters") if $extension=~/^p6$/i;
 	system("python $file $parameters") if $extension=~/^py$/i;
-	print "\n********* Finished Testing:  ",$file,"**********\n\n";
+	print "\n********* Finished Testing:  ",$file,"  **********\n\n";
 	chdir $cwd
 }
 
 sub pathToChallenge{
-	return $config{workingDirectory}.$directorySeparator.
+	my $challengeDir=$config{workingDirectory}.$directorySeparator.
 		      $config{repoName} .$directorySeparator.
-		       "challenge-".$config{currentweek}.$directorySeparator.
-		      $config{githubUN}.$directorySeparator;
+		       "challenge-".$config{currentweek}.$directorySeparator;
+	my $dirName=$config{pwcUN}?$config{pwcUN}:$config{githubUN};
+	return $challengeDir.$dirName.$directorySeparator if (-d $challengeDir.$dirName);
+	
+	my $response=prompt ("Challenge directory not found\n".
+		     "This may occur if your github username is not your username\n".
+		     "for the perl weekly challenge club, or if this your first\n".
+		     "ever submission.  Select one of the following:\n",
+		     \("This is my first ever submission, I wish to use my Github username",
+		       "My PWC user name is different from my github username",
+		       "Something else is wrong (raise an issue)") );
+    if ($response eq "1"){
+		 $dirName=$config{githubUN}?$config{githubUN}:prompt("Enter github username");
+	} 
+	elsif($response eq "2"){
+		$dirName=prompt("Enter $config{repoName} UserName");
+		$config{pwcUN}=$dirName;
+	}
+	else{
+		 raiseAnIssue();
+		 return undef;
+	} 
+    mkdir $challengeDir.$dirName;
+	return $challengeDir.$dirName.$directorySeparator
+
 }
 
 sub stripWrap{                 # strip tags and wrap text 
@@ -380,9 +405,10 @@ sub readyToAdd{
 	      "Are you ready to commit your changes? (y/n)");
 	if ($response =~/y/i){
 		print "Adding current week's ($config{currentweek}) challenges...\n";
-		print `git add challenge-$config{currentweek}/$config{githubUN}`;
+		my $dirName=$config{pwcUN}?$config{pwcUN}:$config{githubUN};  # some PWC usernames do not match GH usernames
+		print `git add challenge-$config{currentweek}/$dirName`;
 		print "Commiting changes...\n";
-		print `git commit --author=$config{githubUN} --message="Challenge-$config{currentweek} solutions by $config{githubUN} submitted using EZPWC"`;
+		print `git commit --author=$config{githubUN} --message="Challenge-$config{currentweek} solutions by $dirName"`;
 		print "Pushing results to your github...\n";
 		print `git  push -u origin branch-$config{currentweek}`;
 		print "Now time to create a pull request.  Browser should open\n".
@@ -397,6 +423,7 @@ sub clearScreen{ # https://www.perlmonks.org/?node_id=18774
 
 sub prompt{
 	my ($message,$options,$validation)=@_;
+
 	print color('bold red'),$message;
 	if (ref $options eq "ARRAY"){
 		my $index=1;
@@ -447,6 +474,14 @@ sub writeFile{
          die "Could not open file '$file' $!";
     print $fh $text;
     close $fh;
+}
+
+sub raiseAnIssue{
+   prompt("\nThank you for raising an issue. Press return to open a browser\n".
+          "window.  You may need to log in to github and submit a bug report\n".
+          "or feature request");
+   browse2("https://github.com/login?return_to=%2Fsaiftynet%2FEZPWC%2Fissues%2Fnew%2Fchoose");
+	
 }
 
 sub saveConfig{  ## crude way to save %config into a file
