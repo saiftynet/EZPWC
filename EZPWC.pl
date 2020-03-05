@@ -10,10 +10,11 @@ use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.085;
+my $VERSION=0.090;
 
 my $OS=$^O;
-my $directorySeparator= ($^O=~/Win/)?"\\":"/";  # should probably use File::Spec
+my $directorySeparator= ($OS=~/Win/)?"\\":"/";  # should probably use File::Spec
+
 my $codeExtensions="(\.pl|\.p6|\.py|\.sh)\$";
 my %config;
 my $workingDirectory="$ENV{HOME}".$directorySeparator."PerlChallenges";
@@ -21,9 +22,9 @@ my $workingDirectory="$ENV{HOME}".$directorySeparator."PerlChallenges";
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 # version notes
 print color('bold yellow'),
-       "\nVersion 0.085 attempts to address a possible issue\n".
-       "caused by some situations when the PWC user name does\n".
-       "not match the github user name\n\n" ,color('reset');
+       "\nVersion 0.09 attempts to address a issue suggested by cpritchett\n".
+       "preserving credentials, and hopefully enable ssh authentication\n".
+       "Please let me know if this working or not\n\n" ,color('reset');
 
 loadConfig();
 versionCheck();          
@@ -31,13 +32,14 @@ setupDirectory();        # step 1 set up a directory locally if it has not been 
 setupGithub();           # step 2 set up user's existing github account or setting up a new one
 makeFork();              # step 3 set up fork if not already forked
 clone();                 # step 4 clone if not already cloned
-addUpstream();           # step 5 ensure upstream has been set up 
-fetchUpstream();         # step 6 fetch upstream
-getChallenges();         # step 7 get challenges from manwar's PWC blog
-getBranches();           # step 8 get branches, and set one up for this week if required
-readyToCode();           # step 9 start coding
-readyToTest();           # step 10 test code (experimental)
-readyToAdd();            # step 11 ready to add
+setupGithub2();          # step 5 try and set up github credentials (issue raised by cpritchett)
+addUpstream();           # step 6 ensure upstream has been set up 
+fetchUpstream();         # step 7 fetch upstream
+getChallenges();         # step 8 get challenges from manwar's PWC blog
+getBranches();           # step 9 get branches, and set one up for this week if required
+readyToCode();           # step 10 start coding
+readyToTest();           # step 11 test code (experimental)
+readyToAdd();            # step 12 ready to add
 saveConfig();	
 print color('bold green'),"\n\nAll done...good bye!!\n",color('reset');
 exit 0;
@@ -88,6 +90,7 @@ sub setupDirectory{
 sub setupGithub{
 	if (($config{githubUN})&&(URLexists("https://github.com/$config{githubUN}"))){
 		print "Github account for $config{githubUN} found...\n";
+		
 		return;		
 	};
 	
@@ -115,7 +118,9 @@ sub setupGithub{
 	   }
    }
    $config{githubUN}=undef if ($config{githubUN} eq "..Skipped");
+   
 }
+
 
 sub makeFork{
 	
@@ -166,6 +171,24 @@ sub clone{
 			$config{clone}=1;
 		};
 	}
+}
+
+
+sub setupGithub2{
+  if (!$config{githubUN}) {print "GitHub account not setup so cannot auto-authenticate\n";return};
+  if (!$config{githubEmail}) {
+		 $config{githubEmail} = prompt ("Enter your github email: \n"); 
+		 };
+   chdir "$config{workingDirectory}".$directorySeparator."$config{repoName}";
+   print "Declaring  username to git\n", `git config --global user.name '$config{githubUN}'`;
+   print "Declaring  email to git\n"   , `git config --global user.email '$config{githubEmail}'`;
+     
+   print `git config --global credential.helper wincred`     and return if $OS =~/Win/;
+   print `git config --global credential.helper osxkeychain` and return if $OS =~/darwin/; 
+   print `git config credential.helper store`;
+   return;                
+   
+  
 }
 
 sub addUpstream{
