@@ -10,23 +10,34 @@ use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.090;
-
-my $OS=$^O;
-my $directorySeparator= ($OS=~/Win/)?"\\":"/";  # should probably use File::Spec
-
-my $codeExtensions="(\.pl|\.p6|\.py|\.sh)\$";
-my %config;
-my $workingDirectory="$ENV{HOME}".$directorySeparator."PerlChallenges";
+my $VERSION=0.10;
 
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 # version notes
 print color('bold yellow'),
-       "\nVersion 0.09 attempts to address a issue suggested by cpritchett\n".
-       "preserving credentials, and hopefully enable ssh authentication\n".
-       "Please let me know if this working or not\n\n" ,color('reset');
+       "\nVersion 0.1 is a addresses some previuos errors and issues \n".
+       "to stream line operations. Please let me know if this working or not.\n".
+       "Entering ",color("red"),"'!'",color("yellow")," at any prompt allows you to submit a new issue\n\n",
+       color('reset');
+       
+my $OS=$^O;
+my $directorySeparator= "/";  
 
+if ($OS=~/Win/){
+	unless( $ENV{HOME}){
+		if ($ENV{USERPROFILE}) {$ENV{HOME}=$ENV{USERPROFILE} }
+        elsif ( $ENV{HOMEDRIVE} and $ENV{HOMEPATH} ) {$ENV{HOME} = $ENV{HOMEDRIVE} . $ENV{HOMEPATH};}
+        else {$ENV{HOME} = '.';}  
+  };
+  $directorySeparator="\\";
+};
+
+my $codeExtensions="(\.pl|\.p6|\.py|\.sh)\$";
+
+my %config;
+my $workingDirectory=$ENV{HOME}.$directorySeparator."PerlChallenges";
 loadConfig();
+
 versionCheck();          
 setupDirectory();        # step 1 set up a directory locally if it has not been setup
 setupGithub();           # step 2 set up user's existing github account or setting up a new one
@@ -61,11 +72,11 @@ sub versionCheck{
 		  
 		}
 		elsif ($latest>$VERSION){
-		  my $input=prompt("Newer version exists\nDo you wish to",["Download latest version into working directory and restart",
+		  my $input=prompt("Newer version exists\nDo you wish to",["Download latest version into working directory",
 		                                     "Download here (e.g if working from clone)",
 		                                     "Stop checking for updates",
 		                                     "Skip this"]);
-           getstore($source, $config{workingDirectory}.$directorySeparator."EZPWC.pl") if $input eq 1;
+           getstore($source, $config{workingDirectory}.$directorySeparator."EZPWC.pl")  if $input eq 1;
            getstore($source, "EZPWC.pl") if $input eq 2;
 		}
 		else {
@@ -90,7 +101,6 @@ sub setupDirectory{
 sub setupGithub{
 	if (($config{githubUN})&&(URLexists("https://github.com/$config{githubUN}"))){
 		print "Github account for $config{githubUN} found...\n";
-		
 		return;		
 	};
 	
@@ -111,6 +121,7 @@ sub setupGithub{
 		}
 	   elsif (URLexists("https://github.com/$config{githubUN}")){
 		   print "Found your github\n";
+		   $config{githubEmail} = prompt ("Enter your github email: \n");
 	   }
 	   else {
 		   print "User '$config{githubUN}' not found on GitHub\n";
@@ -180,8 +191,8 @@ sub setupGithub2{
 		 $config{githubEmail} = prompt ("Enter your github email: \n"); 
 		 };
    chdir "$config{workingDirectory}".$directorySeparator."$config{repoName}";
-   print "Declaring  username to git\n", `git config --global user.name '$config{githubUN}'`;
-   print "Declaring  email to git\n"   , `git config --global user.email '$config{githubEmail}'`;
+   print "Declaring  username=$config{githubUN} to git\n", `git config --global user.name '$config{githubUN}'`;
+   print "Declaring  email   =$config{githubEmail} to git\n"   , `git config --global user.email '$config{githubEmail}'`;
      
    print `git config --global credential.helper wincred`     and return if $OS =~/Win/;
    print `git config --global credential.helper osxkeychain` and return if $OS =~/darwin/; 
@@ -431,7 +442,10 @@ sub readyToAdd{
 		my $dirName=$config{pwcUN}?$config{pwcUN}:$config{githubUN};  # some PWC usernames do not match GH usernames
 		print `git add challenge-$config{currentweek}/$dirName`;
 		print "Commiting changes...\n";
-		print `git commit --author=$config{githubUN} --message="Challenge-$config{currentweek} solutions by $dirName"`;
+		my $message="Challenge-$config{currentweek} solutions by $dirName";
+		$response=prompt("Default message is:\n".color("green").$message.color("red")."\nPress Enter to select, or enter new message\n");
+		$message=$response if $response=~/\w/;
+		print `git commit --author=$config{githubUN} --message="$message"`;
 		print "Pushing results to your github...\n";
 		print `git  push -u origin branch-$config{currentweek}`;
 		print "Now time to create a pull request.  Browser should open\n".
@@ -459,7 +473,10 @@ sub prompt{
 	print color('bold yellow');
 	chomp(my $response=<>);
 	print color('reset');
-	return $response;
+	return $response unless $response =~/^!/;
+	raiseAnIssue();
+	prompt("Press [Enter] to resume");
+	prompt($message,$options,$validation)
 }
 
 sub URLexists{
