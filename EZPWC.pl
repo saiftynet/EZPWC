@@ -10,16 +10,19 @@ use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.10;
+my $VERSION=0.11;
 
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 # version notes
-print color('bold yellow'),
-       "\nVersion 0.1 is a addresses some previuos errors and issues \n".
-       "to stream line operations. Please let me know if this working or not.\n".
-       "Entering ",color("red"),"'!'",color("yellow")," at any prompt allows you to submit a new issue\n\n",
-       color('reset');
-       
+print color('bold yellow'),<<ENDMSG;
+Version 0.11 is a further structuring again to correct a buggy initial run.
+Furthermore the View Tasks, Edit code and Test code workflow is looped so
+that one can go back and re-edit code that is not working.
+
+Entering  '!' at any prompt allows you to submit an issue.
+ENDMSG
+
+print color("reset");       
 my $OS=$^O;
 my $directorySeparator= "/";  
 
@@ -32,24 +35,29 @@ if ($OS=~/Win/){
   $directorySeparator="\\";
 };
 
-my $codeExtensions="(\.pl|\.p6|\.py|\.sh)\$";
-
-my %config;
+####   Edit the following line to set working directory to be elsewhere    ####
 my $workingDirectory=$ENV{HOME}.$directorySeparator."PerlChallenges";
-loadConfig();
 
-versionCheck();          
+
+
+my $codeExtensions="(\.pl|\.p6|\.py|\.sh)\$";
+my %config;
+
+
 setupDirectory();        # step 1 set up a directory locally if it has not been setup
+versionCheck();          
+
 setupGithub();           # step 2 set up user's existing github account or setting up a new one
 makeFork();              # step 3 set up fork if not already forked
 clone();                 # step 4 clone if not already cloned
 setupGithub2();          # step 5 try and set up github credentials (issue raised by cpritchett)
 addUpstream();           # step 6 ensure upstream has been set up 
 fetchUpstream();         # step 7 fetch upstream
-getChallenges();         # step 8 get challenges from manwar's PWC blog
-getBranches();           # step 9 get branches, and set one up for this week if required
-readyToCode();           # step 10 start coding
-readyToTest();           # step 11 test code (experimental)
+getBranches();           # step 8 get branches, and set one up for this week if required
+getChallenges();         # step 9 get challenges from manwar's PWC blog
+
+viewCodeTestCycle();     # step 10 view tasks, edit code, test the code unitl you are finished
+
 readyToAdd();            # step 12 ready to add
 saveConfig();	
 print color('bold green'),"\n\nAll done...good bye!!\n",color('reset');
@@ -61,8 +69,8 @@ sub versionCheck{
 	my $check=$config{versionCheck};
 	if (!$check){
 		$vc=prompt("Do you wish to check for newer versions?:-",["Yes, every time","Yes this time only","Not at this time"]);
-		$check=($vc=~/^1|2$/)?1:0;
-		$config{versionCheck}=(1==$vc);
+		$check=($vc=~/Yes/)?1:0;
+		$config{versionCheck}=($vc=~/every time/);
 	 }
 	 if ($check){
 		my $source="https://raw.githubusercontent.com/saiftynet/EZPWC/master/EZPWC.pl";
@@ -76,8 +84,8 @@ sub versionCheck{
 		                                     "Download here (e.g if working from clone)",
 		                                     "Stop checking for updates",
 		                                     "Skip this"]);
-           getstore($source, $config{workingDirectory}.$directorySeparator."EZPWC.pl")  if $input eq 1;
-           getstore($source, "EZPWC.pl") if $input eq 2;
+           getstore($source, $config{workingDirectory}.$directorySeparator."EZPWC.pl")  if $input =~/working directory/;
+           getstore($source, "EZPWC.pl") if $input =~/here/;
 		}
 		else {
 		  print "You are more recent than github\n";
@@ -86,16 +94,17 @@ sub versionCheck{
 }
 
 sub setupDirectory{
-	if ( -e $config{workingDirectory} and -d $config{workingDirectory}){
+	if ( -e $workingDirectory and -d $workingDirectory){
 		print "Working directory found\n";
 	}
 	else{
-		print "Attempting to create working directory $config{workingDirectory}...\n";
-		mkdir $config{workingDirectory} 
-			or die "Could not create working directory '$config{workingDirectory}' $!";
-		chdir $config{workingDirectory};
+		print "Attempting to create working directory workingDirectory...\n";
+		mkdir $workingDirectory
+			or die "Could not create working directory $workingDirectory $!";
+		chdir $workingDirectory;
 		print "working directory created\n";
 	}
+	loadConfig();
 }
 
 sub setupGithub{
@@ -131,7 +140,6 @@ sub setupGithub{
    $config{githubUN}=undef if ($config{githubUN} eq "..Skipped");
    
 }
-
 
 sub makeFork{
 	
@@ -183,7 +191,6 @@ sub clone{
 		};
 	}
 }
-
 
 sub setupGithub2{
   if (!$config{githubUN}) {print "GitHub account not setup so cannot auto-authenticate\n";return};
@@ -250,35 +257,11 @@ sub fetchUpstream{
 	}
 }
 
-sub getChallenges{   # extracts week number from index page,
-	print "\nGetting challenges\n";
-	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
-	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
-		$config{currentBranch}=undef;      # undefines current branch
-		$config{currentweek}="$week" ;     # sets current week
-	    $config{task1}  = stripWrap(       # extracts tasks and stores them
-	                      findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",
-	                      qr/TASK #1<\/h2>([\s\S]*)<h2 id="task-2">/m),60);
-	    $config{task2}  = stripWrap(
-	                      findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",
-	                      qr/TASK #2<\/h2>([\s\S]*)<p>Last date /m),60);
-    }
-
-	print "\nCurrent week = $config{currentweek}\n\n";
-	my $task=prompt ("Select Task to see",["Task 1","Task 2","Skip"]);
-	while ($task  =~/^1|2$/){
-	   print color('bold green'),"#" x 24,"  Task $task  Week $config{currentweek}  ","#" x 24,"\n",color('reset'),
-	        ($task =~/^1/)?comment($config{task1},"#",65):comment($config{task2},"#",65),
-	        color('bold green'),"#" x 68,"\n",color('reset');
-	   $task=prompt ("\nSelect Task to see",["Task 1","Task 2","Skip"]);
-    }
-}
-
 sub getBranches{
-	print "\n\nGetting branches ";
+	print "Getting branches\n";
 	my $br=`git branch --remote`;
 	my @matches = grep ($_ !~/HEAD|master/,($br =~ /origin\/([^\s\n]+)/mg) );
-	print "\nRemote Branches found : -",join ", ",@matches;
+	print "Remote Branches found : -",join ", ",@matches;
 	my $abr=`git branch`;
 	$abr=~s/\s+/ /gm;
 	print "\nBranches found : - $abr\n";
@@ -293,28 +276,87 @@ sub getBranches{
 		print `git checkout -b branch-$config{currentweek}`;
 		$config{currentBranch}="branch-$config{currentweek}";
 	}
-	print "Now add your responses to folder ".pathToChallenge()."\n";
-	prompt ("Get ready to code!!");  
+	if (prompt("Do you wish to delete old branches? (y/n)")=~/y/i){
+		
+		
+	}
+}
+
+
+sub getChallenges{   # extracts week number from index page,
+	print "\nGetting challenges\n";
+	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
+	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
+		$config{currentBranch}=undef;      # undefines current branch
+		$config{currentweek}="$week" ;     # sets current week
+	    $config{task1}  = stripWrap(       # extracts tasks and stores them
+	                      findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",
+	                      qr/TASK #1<\/h2>([\s\S]*)<h2 id="task-2">/m),60);
+	    $config{task2}  = stripWrap(
+	                      findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",
+	                      qr/TASK #2<\/h2>([\s\S]*)<p>Last date /m),60);
+    }
+}
+
+sub viewCodeTestCycle{
+	while (1){
+		print color("magenta","bold"),"\n\n---------    MAIN Menu    ----------\n\n";
+		my $response = prompt("Now ready to view tasks, create/edit code, or test code\nWhat do you want to do?\nPress [ENTER] to exit",
+	              ["View tasks","Create/Edit code","Test code"]);
+		last unless $response;
+		viewTasks()    if $response =~ /View/;
+		readyToCode()  if $response =~ /Edit/;
+		readyToTest()  if $response =~ /Test/;
+	}
+};
+
+sub viewTasks{
+  while (1){
+    print color("magenta","bold"),"\n----    Tasks for Week $config{currentweek}    -------\n\n";
+    my $task=prompt ("Select Task to see",["Task 1","Task 2"]);
+    last unless $task;
+    print color('bold green'),"#" x 24,"  $task  Week $config{currentweek}  ","#" x 24,"\n",color('reset'),
+	        ($task =~/1/)?comment($config{task1},"#",65):comment($config{task2},"#",65),
+	        color('bold green'),"#" x 68,"\n",color('reset');
+    }
 	
-	  }
+}
 
 sub readyToCode{
-	while (1){
+	print color("magenta","bold"),"\n\n----   Coding Tasks for Week $config{currentweek}    -------\n\n";
+	my $task;
+	my %languages=(
+	    Perl=>{
+			ext=>".pl",
+			path=>"perl$directorySeparator",
+			shebang=>"#!/usr/env/perl\n",
+		},
+		Raku=>{
+			ext=>".p6",
+			path=>"perl/",
+			shebang=>"#!perl6\n",
+		},
+		Python=>{
+			ext=>".py",
+			path=>"python/",
+			shebang=>"#!python\n",
+		},
+	);
+	while (1){  
 		# Auto generate perl scripts for PWC solutions
-		my $language=prompt ("Select Language:-",[qw/Perl Raku Other Skip/]);
-		last if $language !~/^1|2|3$/;
-		my $dir=pathToChallenge().(("","perl","raku","other")[$language]);
+		my $language=prompt ("Select Language (or just [ENTER] to abort):-",[keys %languages]);
+		last unless $language;
+		my $dir=pathToChallenge().$languages{$language}{path};
 		print "Making directory $dir, if not already present\n";
 		mkdir $dir unless -d $dir;
-		my $task=prompt ("Select Task to work on:-",["Task 1","Task 2","Skip"]);
-		last if $task !~/^1|2$/;
-		my $file=$dir.$directorySeparator."ch-$task.".(("","pl","p6","")[$language]);
-		my $shebang=(("","#!/usr/env/perl\n","#!perl6 \n","")[$language]);
+		($task=prompt ("Select Task to work on (or just [ENTER] to abort):-",["Task 1","Task 2"]))=~s/[^\d]//g ;
+		last unless $task;
+		my $file=$dir.$directorySeparator."ch-".$task.$languages{$language}{ext};
 		if (-e $file){
 			browse2 ($file);
 		}
 		else{
-			writeFile($file,"$shebang# Task $task Challenge $config{currentweek} Solution by $config{githubUN}\n".
+			writeFile($file,"$languages{$language}{shebang}# Task $task Challenge $config{currentweek} Solution by $config{githubUN}\n".
 							 comment($config{"task$task"},"#"));
 			browse2 ($file);
 		}
@@ -322,9 +364,9 @@ sub readyToCode{
 }	
     
 sub readyToTest{
-	prompt ("Get ready to test your code!!\n".
-	        "NOTE:- In testing your code will be executed as written\n".
-	        "There will be no safety checks so please be satisfied that\n".
+	print color("magenta","bold"),"\n\n---------    Testing code    -----------\n\n";
+	prompt ("NOTE:- In testing your code will be executed as written\n".
+	        "there will be no safety checks, so please be satisfied that\n".
 	        "it is safe to do so.");
 	my $dir=pathToChallenge();
 	my (@dirs,@scripts);
@@ -339,14 +381,15 @@ sub readyToTest{
 			push @scripts, $_ if (-f $_) and ($_=~/$codeExtensions/);
 		}
 	}
-	my @fileNames=map {/$directorySeparator([^$directorySeparator]+)$/;$1} @scripts;
+	my %files=map {/$directorySeparator([^$directorySeparator]+)$/;$1=>$_} @scripts;
 	while (1){
-	    my $response=prompt("Select file to test or 's' to skip",\@fileNames);
-	    last if  !$response or $response!~/\d/ or $response>@scripts;
-	    testCode($scripts[$response-1]);
+	    my $response=prompt("Select file to test or 's' to skip",[keys %files]);
+	    last if  !$response or $response!~/\d/;
+	    testCode($files{$response});
     }
-	
 }
+
+
 
 sub testCode{
 	my ($file,$dir,$extension)=pathToFileDirExtension ( shift );
@@ -468,12 +511,19 @@ sub prompt{
 		foreach (@$options){
 			print color('bold green'),$index++,") ",$_,"\n";
 		}
+		my $validOps="1-".scalar @$options;   # valid numbers for options
+		print color('bold red'),"Enter $validOps >>";
+	    print color('bold yellow');
+	    chomp(my $response=<>);print color('reset');
+	    return undef if $response !~/^[$validOps]|!$/; 
+	    return $$options[$response-1] unless $response =~/^!/;;
 	}
-	print color('bold red')," >>";
-	print color('bold yellow');
-	chomp(my $response=<>);
-	print color('reset');
-	return $response unless $response =~/^!/;
+	else{
+	   print color('bold red')," >>";
+	   print color('bold yellow');
+	   chomp(my $response=<>);print color('reset');
+	   return $response unless $response =~/^!/;;
+    }
 	raiseAnIssue();
 	prompt("Press [Enter] to resume");
 	prompt($message,$options,$validation)
@@ -548,6 +598,7 @@ sub loadConfig{
 		      print "Config exists but contains errors, please report.\n";
 		}
 	}
+
 
 	print "Failed to load config, continuing with defaults\n";
 	unlink ("$workingDirectory/Config");
