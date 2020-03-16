@@ -1,16 +1,15 @@
 #!/usr/env perl
 # Eazy Perl Weekly Challenge EZPWC  
-# This is a script that attempts to make Perl Weekly Challenges easier to do
-# It creates a PerlChallenges directory in the home folder if not already
-# present, forks the repo if needed, creates a clone, registers upstream,
-# fetches the upstream and gets the most recent challenges.
+# This is a script that attempts to make Perl Weekly Challenges submission
+# throgh github easier to do.  forks, clones, fetches, create new branch,
+# views challenges, edits responses, tests code, then submits pull requests
 
 use strict;use warnings;
 use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.11;
+my $VERSION=0.12;
 
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 # version notes
@@ -18,6 +17,8 @@ print color('bold yellow'),<<ENDMSG;
 Version 0.11 is a further structuring again to correct a buggy initial run.
 Furthermore the View Tasks, Edit code and Test code workflow is looped so
 that one can go back and re-edit code that is not working.
+
+Version 0.12 fixes bug that produced week not found error
 
 Entering  '!' at any prompt allows you to submit an issue.
 ENDMSG
@@ -37,8 +38,6 @@ if ($OS=~/Win/){
 
 ####   Edit the following line to set working directory to be elsewhere    ####
 my $workingDirectory=$ENV{HOME}.$directorySeparator."PerlChallenges";
-
-
 
 my $codeExtensions="(\.pl|\.p6|\.py|\.sh)\$";
 my %config;
@@ -266,6 +265,12 @@ sub getBranches{
 	$abr=~s/\s+/ /gm;
 	print "\nBranches found : - $abr\n";
 	
+	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
+	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
+		$config{currentBranch}=undef;      # undefines current branch
+		$config{currentweek}="$week" ;     # sets current week
+	}
+	
 	if ($abr=~/\bbranch-$config{currentweek}\b/gm){
 		print "\nBranch for current week ($config{currentweek}) found\n\n";
 		print `git checkout branch-$config{currentweek}`;
@@ -276,7 +281,7 @@ sub getBranches{
 		print `git checkout -b branch-$config{currentweek}`;
 		$config{currentBranch}="branch-$config{currentweek}";
 	}
-	if (prompt("Do you wish to delete old branches? (y/n)")=~/y/i){
+	if (prompt("Do you wish to delete old branches?  (to be done...nothing happens) (y/n)")=~/y/i){
 		
 		
 	}
@@ -285,17 +290,13 @@ sub getBranches{
 
 sub getChallenges{   # extracts week number from index page,
 	print "\nGetting challenges\n";
-	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
-	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
-		$config{currentBranch}=undef;      # undefines current branch
-		$config{currentweek}="$week" ;     # sets current week
-	    $config{task1}  = stripWrap(       # extracts tasks and stores them
-	                      findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",
-	                      qr/TASK #1<\/h2>([\s\S]*)<h2 id="task-2">/m),60);
-	    $config{task2}  = stripWrap(
-	                      findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$week",
-	                      qr/TASK #2<\/h2>([\s\S]*)<p>Last date /m),60);
-    }
+	$config{task1}  = stripWrap(       # extracts tasks and stores them
+					  findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$config{currentweek}",
+					  qr/TASK #1<\/h2>([\s\S]*)<h2 id="task-2">/m),60);
+	$config{task2}  = stripWrap(
+					  findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$config{currentweek}",
+					  qr/TASK #2<\/h2>([\s\S]*)<p>Last date /m),60);
+
 }
 
 sub viewCodeTestCycle{
@@ -416,9 +417,9 @@ sub pathToChallenge{
 		     "This may occur if your github username is not your username\n".
 		     "for the perl weekly challenge club, or if this your first\n".
 		     "ever submission.  Select one of the following:\n",
-		     \("This is my first ever submission, I wish to use my Github username",
+		     ["This is my first ever submission, I wish to use my Github username",
 		       "My PWC user name is different from my github username",
-		       "Something else is wrong (raise an issue)") );
+		       "Something else is wrong (raise an issue)"] );
     if ($response eq "1"){
 		 $dirName=$config{githubUN}?$config{githubUN}:prompt("Enter github username");
 	} 
