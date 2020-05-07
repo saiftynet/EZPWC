@@ -9,17 +9,14 @@ use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
 use Term::ANSIColor;
 
-my $VERSION=0.12;
+my $VERSION=0.13;
 
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 # version notes
+
 print color('bold yellow'),<<ENDMSG;
-Version 0.11 is a further structuring again to correct a buggy initial run.
-Furthermore the View Tasks, Edit code and Test code workflow is looped so
-that one can go back and re-edit code that is not working.
-
-Version 0.12 fixes bug that produced week not found error
-
+Version 0.13
+now includes a branch manager.
 Entering  '!' at any prompt allows you to submit an issue.
 ENDMSG
 
@@ -45,7 +42,6 @@ my %config;
 
 setupDirectory();        # step 1 set up a directory locally if it has not been setup
 versionCheck();          
-
 setupGithub();           # step 2 set up user's existing github account or setting up a new one
 makeFork();              # step 3 set up fork if not already forked
 clone();                 # step 4 clone if not already cloned
@@ -61,7 +57,6 @@ readyToAdd();            # step 12 ready to add
 saveConfig();	
 print color('bold green'),"\n\nAll done...good bye!!\n",color('reset');
 exit 0;
-
 
 sub versionCheck{
 	my $vc;
@@ -143,6 +138,7 @@ sub setupGithub{
 sub makeFork{
 	
     if (!$config{githubUN}) {print "GitHub account not setup so cannot fork\n";return};
+    if ($config{githubUN} eq $config{repoOwner}) { print "repo owner so no need to fork\n";return}
     if ($config{"fork"})    {print "Fork already set up\n";return};
 	
 	print "Checking for fork $config{repoName};...\n";
@@ -170,7 +166,8 @@ sub makeFork{
 }
 
 sub clone{
-	if (!$config{"fork"})   {print "Fork not setup so cannot clone\n";return}; 
+	if (!$config{"fork"} && (($config{githubUN} ne $config{repoOwner}) )) 
+	   {print "Fork not setup so cannot clone \n";return};  
 	if ($config{"clone"})   {print "Clone found\n";return};
 	
 	print "cloning repo\n";
@@ -204,8 +201,6 @@ sub setupGithub2{
    print `git config --global credential.helper osxkeychain` and return if $OS =~/darwin/; 
    print `git config credential.helper store`;
    return;                
-   
-  
 }
 
 sub addUpstream{
@@ -222,11 +217,11 @@ sub addUpstream{
 		`git remote add upstream https://github.com/$config{repoOwner}/$config{repoName}`;
 		if (upstreamExists()){
 		 $config{upstream}=1 ;
-		 print "Upstream added successfully" ; 
+		 print "Upstream added successfully\n" ; 
 		}
 		else{
 		 $config{upstream}=0;
-		 print "Upstream not added" ; 
+		 print "Upstream not added\n" ; 
 		}
 	}
 }
@@ -259,11 +254,23 @@ sub fetchUpstream{
 sub getBranches{
 	print "Getting branches\n";
 	my $br=`git branch --remote`;
-	my @matches = grep ($_ !~/HEAD|master/,($br =~ /origin\/([^\s\n]+)/mg) );
-	print "Remote Branches found : -",join ", ",@matches;
+	my @matches = grep ($_ !~/HEAD|master|$config{currentweek}/,($br =~ /origin\/([^\s\n]+)/mg) );
+	print "Old Remote Branches found : -",join ", ",@matches if @matches>0;
+	if (@matches and prompt("\nDo you wish to delete old remote branches?") =~/y/i){
+		foreach (@matches){
+			print `git push -d origin $_\n` unless m/branch-$config{currentweek}/;
+		}
+	}
 	my $abr=`git branch`;
 	$abr=~s/\s+/ /gm;
-	print "\nBranches found : - $abr\n";
+	print "\nLocal Branches found : - $abr\n";
+	@matches= grep ($_ !~/\*|master|$config{currentweek}/, split /\s+/mg,$abr);
+	if (scalar @matches>1 and prompt("\nDo you wish to delete old local branches?") =~/y/i){
+		my @matches= grep (/branch-/, split / /,$abr);
+		foreach (@matches){
+			print `git branch -d $_\n` unless m/branch-$config{currentweek}/;
+		}
+	}
 	
 	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
 	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
@@ -281,22 +288,16 @@ sub getBranches{
 		print `git checkout -b branch-$config{currentweek}`;
 		$config{currentBranch}="branch-$config{currentweek}";
 	}
-	if (prompt("Do you wish to delete old branches?  (to be done...nothing happens) (y/n)")=~/y/i){
-		
-		
-	}
 }
-
 
 sub getChallenges{   # extracts week number from index page,
 	print "\nGetting challenges\n";
 	$config{task1}  = stripWrap(       # extracts tasks and stores them
 					  findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$config{currentweek}",
-					  qr/TASK #1<\/h2>([\s\S]*)<h2 id="task-2">/m),60);
+					  qr/TASK #1([\s\S]*)<h2 id="task-2/m),60);
 	$config{task2}  = stripWrap(
 					  findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$config{currentweek}",
-					  qr/TASK #2<\/h2>([\s\S]*)<p>Last date /m),60);
-
+					  qr/TASK #2([\s\S]*)<p>Last date /m),60);
 }
 
 sub viewCodeTestCycle{
@@ -320,7 +321,6 @@ sub viewTasks{
 	        ($task =~/1/)?comment($config{task1},"#",65):comment($config{task2},"#",65),
 	        color('bold green'),"#" x 68,"\n",color('reset');
     }
-	
 }
 
 sub readyToCode{
@@ -494,9 +494,9 @@ sub readyToAdd{
 		print `git  push -u origin branch-$config{currentweek}`;
 		print "Now time to create a pull request.  Browser should open\n".
 		      "and you should see a button to create pull request...\n";
-		browse2("https://github.com/login?return_to=%2F$config{githubUN}%2Fperlweeklychallenge-club");
+		browse2("https://github.com/login?return_to=%2F$config{githubUN}%2Fperlweeklychallenge-club/pull/new/branch-$config{currentweek}");
 	}
-}
+} 
 
 sub clearScreen{ # https://www.perlmonks.org/?node_id=18774
 	system $^O eq 'MSWin32' ? 'cls' : 'clear';
