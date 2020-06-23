@@ -264,7 +264,7 @@ sub getBranches{
 	my $abr=`git branch`;
 	$abr=~s/\s+/ /gm;
 	print "\nLocal Branches found : - $abr\n";
-	@matches= grep ($_ !~/\*|master|$config{currentweek}/, split /\s+/mg,$abr);
+	@matches= grep ($_ !~/\*|master|$config{currentweek}/, split /\s+/m,$abr);
 	if (scalar @matches>1 and prompt("\nDo you wish to delete old local branches?") =~/y/i){
 		my @matches= grep (/branch-/, split / /,$abr);
 		foreach (@matches){
