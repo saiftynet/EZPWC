@@ -1,4 +1,4 @@
-#!/usr/env perl
+#!/usr/bin/env perl
 # Eazy Perl Weekly Challenge EZPWC  
 # This is a script that attempts to make Perl Weekly Challenges submission
 # throgh github easier to do.  forks, clones, fetches, create new branch,
