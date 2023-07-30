@@ -7,6 +7,7 @@
 use strict;use warnings;
 use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
+use Data::Dumper ();
 use Term::ANSIColor;
 
 my $VERSION=0.13;
@@ -578,20 +579,15 @@ sub raiseAnIssue{
 sub saveConfig{  ## crude way to save %config into a file
     open(my $fh, '>', $config{workingDirectory}.'/Config') or
          die "Could not open file '$config{workingDirectory}/Config' $!";
-    for (sort keys %config){
-		if (defined $config{$_}){
-			print $fh " $_  => '$config{$_}',\n";
-		}
-		else{
-			print $fh " $_  => '',\n"
-		}
-	}
+	print {$fh} Data::Dumper->new([\%config])->Purity(1)->Terse(1)->Deepcopy(1)->Dump();
 	close $fh;
 }
 
 sub loadConfig{
 	if (-e "$workingDirectory/Config") { 
-		if (%config=do "$workingDirectory/Config" ){   ## crude way to load %config from a file
+		my $VAR1;
+		if (my @config = do "$workingDirectory/Config" ){   ## crude way to load %config from a file
+			%config = (ref($config[0]) eq 'HASH') ? %{ $config[0] } : @config;
 			print "Config successfully loaded\n";
 			return;
 		}
