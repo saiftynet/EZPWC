@@ -12,6 +12,8 @@ use Term::ANSIColor;
 
 my $VERSION=0.13;
 
+my $PWC_SITE = 'https://theweeklychallenge.org';
+
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 # version notes
 
@@ -273,7 +275,7 @@ sub getBranches{
 		}
 	}
 	
-	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
+	my $week   = findItem($PWC_SITE,qr/perl-weekly-challenge-(\d+)/m);
 	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
 		$config{currentBranch}=undef;      # undefines current branch
 		$config{currentweek}="$week" ;     # sets current week
@@ -294,11 +296,12 @@ sub getBranches{
 sub getChallenges{   # extracts week number from index page,
 	print "\nGetting challenges\n";
 	$config{task1}  = stripWrap(       # extracts tasks and stores them
-					  findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$config{currentweek}",
+					  findItem("${PWC_SITE}/blog/perl-weekly-challenge-$config{currentweek}",
 					  qr/TASK #1([\s\S]*)<h2 id="task-2/m),60);
 	$config{task2}  = stripWrap(
-					  findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$config{currentweek}",
+					  findItem("${PWC_SITE}/blog/perl-weekly-challenge-$config{currentweek}",
 					  qr/TASK #2([\s\S]*)<p>Last date /m),60);
+
 }
 
 sub viewCodeTestCycle{
