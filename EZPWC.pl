@@ -135,7 +135,7 @@ sub setupGithub{
 	   }
    }
    $config{githubUN}=undef if ($config{githubUN} eq "..Skipped");
-   
+   saveConfig();
 }
 
 sub makeFork{
