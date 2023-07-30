@@ -297,10 +297,10 @@ sub getChallenges{   # extracts week number from index page,
 	print "\nGetting challenges\n";
 	$config{task1}  = stripWrap(       # extracts tasks and stores them
 					  findItem("${PWC_SITE}/blog/perl-weekly-challenge-$config{currentweek}",
-					  qr/TASK #1([\s\S]*)<h2 id="task-2/m),60);
+					  qr/Task 1:([\s\S]*)<h2 id="TASK2/m),60);
 	$config{task2}  = stripWrap(
 					  findItem("${PWC_SITE}/blog/perl-weekly-challenge-$config{currentweek}",
-					  qr/TASK #2([\s\S]*)<p>Last date /m),60);
+					  qr/Task 2:([\s\S]*)<p>Last date /m),60);
 
 }
 
