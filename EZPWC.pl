@@ -442,10 +442,15 @@ sub pathToChallenge{
 
 sub stripWrap{                 # strip tags and wrap text 
 	my ($text,$columns)=@_;
-	$text=~s/\n//gm;           # remove newlines
+	$text=~s/\n+/ /gm;           # remove newlines
 	$text=~s/<\/p>|<\/h3>/\n/gm;      # replace paragraph ends with newlines
-	$text=~s/<[^>]*>//gm;      # remove all other tags
-	
+	$text=~s/<[^>]*>/ /gm;      # remove all other tags
+	my %ent = (
+		'gt' => '>',
+		'lt' => '<',
+		'amp' => '&',
+	);
+	$text =~ s/&$_;/$ent{$_}/ge for keys %ent;
 	$columns//=60;             # default characters per column approx 60
 	my $count=0; my $wrapped="";
 	foreach my $ch(split //,$text){
