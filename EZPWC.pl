@@ -7,9 +7,12 @@
 use strict;use warnings;
 use LWP::Simple qw($ua get head getstore);
 use Cwd qw(getcwd);
+use Data::Dumper ();
 use Term::ANSIColor;
 
 my $VERSION=0.13;
+
+my $PWC_SITE = 'https://theweeklychallenge.org';
 
 print color('bold green'),"Starting EZPWC $VERSION\n",color('reset');
 # version notes
@@ -132,7 +135,7 @@ sub setupGithub{
 	   }
    }
    $config{githubUN}=undef if ($config{githubUN} eq "..Skipped");
-   
+   saveConfig();
 }
 
 sub makeFork{
@@ -272,7 +275,7 @@ sub getBranches{
 		}
 	}
 	
-	my $week   = findItem("http://perlweeklychallenge.org",qr/perl-weekly-challenge-(\d+)/m);
+	my $week   = findItem($PWC_SITE,qr/perl-weekly-challenge-(\d+)/m);
 	unless ((exists $config{currentweek})&&($config{currentweek} eq $week)){
 		$config{currentBranch}=undef;      # undefines current branch
 		$config{currentweek}="$week" ;     # sets current week
@@ -293,11 +296,12 @@ sub getBranches{
 sub getChallenges{   # extracts week number from index page,
 	print "\nGetting challenges\n";
 	$config{task1}  = stripWrap(       # extracts tasks and stores them
-					  findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$config{currentweek}",
-					  qr/TASK #1([\s\S]*)<h2 id="task-2/m),60);
+					  findItem("${PWC_SITE}/blog/perl-weekly-challenge-$config{currentweek}",
+					  qr/Task 1:([\s\S]*)<h2 id="TASK2/m),60);
 	$config{task2}  = stripWrap(
-					  findItem("http://perlweeklychallenge.org/blog/perl-weekly-challenge-$config{currentweek}",
-					  qr/TASK #2([\s\S]*)<p>Last date /m),60);
+					  findItem("${PWC_SITE}/blog/perl-weekly-challenge-$config{currentweek}",
+					  qr/Task 2:([\s\S]*)<p>Last date /m),60);
+
 }
 
 sub viewCodeTestCycle{
@@ -438,10 +442,15 @@ sub pathToChallenge{
 
 sub stripWrap{                 # strip tags and wrap text 
 	my ($text,$columns)=@_;
-	$text=~s/\n//gm;           # remove newlines
+	$text=~s/\n+/ /gm;           # remove newlines
 	$text=~s/<\/p>|<\/h3>/\n/gm;      # replace paragraph ends with newlines
-	$text=~s/<[^>]*>//gm;      # remove all other tags
-	
+	$text=~s/<[^>]*>/ /gm;      # remove all other tags
+	my %ent = (
+		'gt' => '>',
+		'lt' => '<',
+		'amp' => '&',
+	);
+	$text =~ s/&$_;/$ent{$_}/ge for keys %ent;
 	$columns//=60;             # default characters per column approx 60
 	my $count=0; my $wrapped="";
 	foreach my $ch(split //,$text){
@@ -578,20 +587,15 @@ sub raiseAnIssue{
 sub saveConfig{  ## crude way to save %config into a file
     open(my $fh, '>', $config{workingDirectory}.'/Config') or
          die "Could not open file '$config{workingDirectory}/Config' $!";
-    for (sort keys %config){
-		if (defined $config{$_}){
-			print $fh " $_  => '$config{$_}',\n";
-		}
-		else{
-			print $fh " $_  => '',\n"
-		}
-	}
+	print {$fh} Data::Dumper->new([\%config])->Purity(1)->Terse(1)->Deepcopy(1)->Dump();
 	close $fh;
 }
 
 sub loadConfig{
 	if (-e "$workingDirectory/Config") { 
-		if (%config=do "$workingDirectory/Config" ){   ## crude way to load %config from a file
+		my $VAR1;
+		if (my @config = do "$workingDirectory/Config" ){   ## crude way to load %config from a file
+			%config = (ref($config[0]) eq 'HASH') ? %{ $config[0] } : @config;
 			print "Config successfully loaded\n";
 			return;
 		}
